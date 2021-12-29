@@ -150,7 +150,7 @@ func (p *page) write(offset int, data []byte) (int, error) {
 	if offset < 0 || offset >= len(p.buf) {
 		return 0, fmt.Errorf("%w: block size: %v byte, offset: %v", errPageOffsetOutOfRange, len(p.buf), offset)
 	}
-	if offset+binary.MaxVarintLen64+len(data) > len(p.buf) {
+	if offset+calcBytesNeeded(data) > len(p.buf) {
 		return 0, fmt.Errorf("%w: block size: %v byte, offset: %v, data size: %v byte", errPageTooBigData, len(p.buf), offset, len(data))
 	}
 
@@ -160,6 +160,10 @@ func (p *page) write(offset int, data []byte) (int, error) {
 	copy(p.buf[offset+len(b):], data)
 
 	return len(b) + len(data), nil
+}
+
+func calcBytesNeeded(b []byte) int {
+	return binary.MaxVarintLen64 + len(b)
 }
 
 var (
