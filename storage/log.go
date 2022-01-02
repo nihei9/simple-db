@@ -116,6 +116,13 @@ func (m *logManager) flushAll() error {
 	return nil
 }
 
+func (m *logManager) flush(lsn logSeqNum) error {
+	if lsn < m.lastSavedLSN {
+		return nil
+	}
+	return m.flushAll()
+}
+
 func (m *logManager) apply(f func(rec []byte) error) error {
 	err := m.flushAll()
 	if err != nil {
