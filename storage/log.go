@@ -81,11 +81,10 @@ func (m *logManager) appendLog(logRec []byte) (logSeqNum, error) {
 		return lsnNil, err
 	}
 	m.freeBytes -= n
-	n, err = m.logPage.writeInt64(0, int64(offset))
+	_, err = m.logPage.writeInt64(0, int64(offset))
 	if err != nil {
 		return lsnNil, err
 	}
-	m.freeBytes -= n
 	m.latestLSN++
 	return m.latestLSN, nil
 }
