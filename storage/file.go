@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -9,15 +10,31 @@ import (
 	"strings"
 )
 
+type blockIDHash [32]byte
+
 type blockID struct {
 	fileName string
 	blkNum   int
+	hash     blockIDHash
 }
 
 func newBlockID(fileName string, blkNum int) *blockID {
+	var h blockIDHash
+	{
+		b := make([]byte, len(fileName)+binary.MaxVarintLen64)
+		sb := []byte(fileName)
+		copy(b, sb)
+		ib := make([]byte, binary.MaxVarintLen64)
+		binary.PutVarint(ib, int64(blkNum))
+		copy(b[len(sb):], ib)
+
+		h = sha256.Sum256(b)
+	}
+
 	return &blockID{
 		fileName: fileName,
 		blkNum:   blkNum,
+		hash:     h,
 	}
 }
 
