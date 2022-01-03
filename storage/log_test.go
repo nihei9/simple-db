@@ -44,12 +44,12 @@ func TestLogManager(t *testing.T) {
 	}
 
 	n := logCount
-	err = lm.apply(func(rec []byte) error {
+	err = lm.apply(func(rec []byte) (bool, error) {
 		n--
 		if string(rec) != logs[n] {
 			t.Fatalf("unexpected log record: want: %v, got: %v", logs[n], string(rec))
 		}
-		return nil
+		return false, nil
 	})
 	if err != nil {
 		t.Fatal(err)

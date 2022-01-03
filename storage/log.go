@@ -123,7 +123,7 @@ func (m *logManager) flush(lsn logSeqNum) error {
 	return m.flushAll()
 }
 
-func (m *logManager) apply(f func(rec []byte) error) error {
+func (m *logManager) apply(f func(rec []byte) (bool, error)) error {
 	err := m.flushAll()
 	if err != nil {
 		return err
@@ -167,9 +167,12 @@ func (m *logManager) apply(f func(rec []byte) error) error {
 		}
 		offset += n
 
-		err = f(rec)
+		done, err := f(rec)
 		if err != nil {
 			return err
+		}
+		if done {
+			return nil
 		}
 	}
 }
