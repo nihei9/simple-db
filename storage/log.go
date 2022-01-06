@@ -1,5 +1,7 @@
 package storage
 
+import "sync"
+
 type logSeqNum int
 
 const lsnNil logSeqNum = 0
@@ -12,6 +14,7 @@ type logManager struct {
 	freeBytes    int
 	latestLSN    logSeqNum
 	lastSavedLSN logSeqNum
+	mu           sync.Mutex
 }
 
 func newLogManager(fm *fileManager, logFileName string) (*logManager, error) {
@@ -56,13 +59,16 @@ func newLogManager(fm *fileManager, logFileName string) (*logManager, error) {
 }
 
 func (m *logManager) appendLog(logRec []byte) (logSeqNum, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	boundary, _, err := m.logPage.readInt64(0)
 	if err != nil {
 		return lsnNil, err
 	}
 	bytesNeeded := calcBytesNeeded(logRec)
 	if bytesNeeded > m.freeBytes {
-		err := m.flushAll()
+		err := m.flushAllNoLock()
 		if err != nil {
 			return lsnNil, err
 		}
@@ -107,6 +113,13 @@ func (m *logManager) allocBlock() (*blockID, error) {
 }
 
 func (m *logManager) flushAll() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.flushAllNoLock()
+}
+
+func (m *logManager) flushAllNoLock() error {
 	err := m.fm.write(m.currentBlk, m.logPage)
 	if err != nil {
 		return err
@@ -116,14 +129,20 @@ func (m *logManager) flushAll() error {
 }
 
 func (m *logManager) flush(lsn logSeqNum) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if lsn < m.lastSavedLSN {
 		return nil
 	}
-	return m.flushAll()
+	return m.flushAllNoLock()
 }
 
 func (m *logManager) apply(f func(rec []byte) (bool, error)) error {
-	err := m.flushAll()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	err := m.flushAllNoLock()
 	if err != nil {
 		return err
 	}

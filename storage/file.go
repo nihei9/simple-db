@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type blockIDHash [32]byte
@@ -214,6 +215,7 @@ type fileManager struct {
 	dirPath   string
 	blkSize   int
 	openFiles map[string]*os.File
+	mu        sync.Mutex
 }
 
 func newFileManager(dirPath string, blkSize int) (*fileManager, error) {
@@ -255,7 +257,10 @@ func newFileManager(dirPath string, blkSize int) (*fileManager, error) {
 
 // read reads the contents of a block into a page.
 func (m *fileManager) read(blk *blockID, p *page) error {
-	f, err := m.open(blk.fileName)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, err := m.openNoLock(blk.fileName)
 	if err != nil {
 		return err
 	}
@@ -268,7 +273,10 @@ func (m *fileManager) read(blk *blockID, p *page) error {
 
 // write writes the contents of a page to a block on a disk.
 func (m *fileManager) write(blk *blockID, p *page) error {
-	f, err := m.open(blk.fileName)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, err := m.openNoLock(blk.fileName)
 	if err != nil {
 		return err
 	}
@@ -285,7 +293,10 @@ func (m *fileManager) write(blk *blockID, p *page) error {
 }
 
 func (m *fileManager) alloc(fileName string) (*blockID, error) {
-	f, err := m.open(fileName)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	f, err := m.openNoLock(fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +325,13 @@ func (m *fileManager) blockCount(fileName string) (int, error) {
 }
 
 func (m *fileManager) open(fileName string) (*os.File, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.openNoLock(fileName)
+}
+
+func (m *fileManager) openNoLock(fileName string) (*os.File, error) {
 	f, ok := m.openFiles[fileName]
 	if ok {
 		return f, nil

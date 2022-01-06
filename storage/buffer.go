@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -114,6 +115,7 @@ func (b *buffer) unpin() error {
 type bufferManager struct {
 	pool         []*buffer
 	freeBufCount int
+	mu           sync.Mutex
 }
 
 func newBufferManager(fm *fileManager, lm *logManager, bufSize int) (*bufferManager, error) {
@@ -132,6 +134,9 @@ func newBufferManager(fm *fileManager, lm *logManager, bufSize int) (*bufferMana
 }
 
 func (m *bufferManager) flushAll(txNum transactionNum) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	for _, buf := range m.pool {
 		if buf.txNum != txNum {
 			continue
@@ -145,6 +150,9 @@ func (m *bufferManager) flushAll(txNum transactionNum) error {
 }
 
 func (m *bufferManager) pin(blk *blockID) (*buffer, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	w := time.NewTimer(10 * time.Second)
 	t := time.NewTicker(1 * time.Second)
 	defer t.Stop()
@@ -211,6 +219,9 @@ func (m *bufferManager) chooseUnpinnedBuffer() *buffer {
 }
 
 func (m *bufferManager) unpin(buf *buffer) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	err := buf.unpin()
 	if err != nil {
 		return err
