@@ -57,6 +57,7 @@ var (
 	errPageTooBigData          = fmt.Errorf("data is too big")
 	errPageNegativeDataSize    = fmt.Errorf("data size must be >0")
 	errPageDataOutOfRange      = fmt.Errorf("data is out of range")
+	errPageNoData              = fmt.Errorf("data does not exist yet")
 )
 
 func newPage(blkSize int) (*page, error) {
@@ -82,6 +83,9 @@ func (p *page) readInt64(offset int) (int64, int, error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to read an int64: %w", err)
 	}
+	if len(b) == 0 {
+		return 0, 0, fmt.Errorf("failed to read an int64: %w", errPageNoData)
+	}
 	v, err := decodeToInt64(b)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to decode data to an int64: %w", err)
@@ -103,6 +107,9 @@ func (p *page) readUint64(offset int) (uint64, int, error) {
 	b, n, err := p.read(offset)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to read a uint64: %w", err)
+	}
+	if len(b) == 0 {
+		return 0, 0, fmt.Errorf("failed to read a uint64: %w", errPageNoData)
 	}
 	v, err := decodeToUint64(b)
 	if err != nil {
@@ -126,6 +133,8 @@ func (p *page) readString(offset int) (string, int, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to read a string: %w", err)
 	}
+	// NOTE: If `b` is empty, we want to return an `errPageNoData`, but we cannot do that because we cannot
+	// distinguish it from the case where `b` represents the empty string.
 	return string(b), n, nil
 }
 

@@ -365,7 +365,7 @@ func TestPage_int64(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, _, err = p.readInt64(0)
-		if !errors.Is(err, errDecodeVarintEmptySource) {
+		if !errors.Is(err, errPageNoData) {
 			t.Fatal(err)
 		}
 	})
@@ -418,7 +418,7 @@ func TestPage_uint64(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, _, err = p.readUint64(0)
-		if !errors.Is(err, errDecodeVarintEmptySource) {
+		if !errors.Is(err, errPageNoData) {
 			t.Fatal(err)
 		}
 	})
