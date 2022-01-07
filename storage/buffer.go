@@ -232,3 +232,11 @@ func (m *bufferManager) unpin(buf *buffer) error {
 	m.freeBufCount++
 	return nil
 }
+
+//nolint:unused
+func (m *bufferManager) availableBufferCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.freeBufCount
+}
