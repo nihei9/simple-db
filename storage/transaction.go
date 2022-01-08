@@ -99,15 +99,15 @@ func (t *Transaction) Recover() error {
 	return nil
 }
 
-func (t *Transaction) Pin(blk *blockID) error {
+func (t *Transaction) Pin(blk *BlockID) error {
 	return t.bl.pin(blk)
 }
 
-func (t *Transaction) Unpin(blk *blockID) error {
+func (t *Transaction) Unpin(blk *BlockID) error {
 	return t.bl.unpin(blk)
 }
 
-func (t *Transaction) ReadInt64(blk blockIDHash, offset int) (int64, error) {
+func (t *Transaction) ReadInt64(blk BlockIDHash, offset int) (int64, error) {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.sLock(ctx, blk)
@@ -122,7 +122,7 @@ func (t *Transaction) ReadInt64(blk blockIDHash, offset int) (int64, error) {
 	return v, err
 }
 
-func (t *Transaction) ReadUint64(blk blockIDHash, offset int) (uint64, error) {
+func (t *Transaction) ReadUint64(blk BlockIDHash, offset int) (uint64, error) {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.sLock(ctx, blk)
@@ -137,7 +137,7 @@ func (t *Transaction) ReadUint64(blk blockIDHash, offset int) (uint64, error) {
 	return v, err
 }
 
-func (t *Transaction) ReadString(blk blockIDHash, offset int) (string, error) {
+func (t *Transaction) ReadString(blk BlockIDHash, offset int) (string, error) {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.sLock(ctx, blk)
@@ -152,7 +152,7 @@ func (t *Transaction) ReadString(blk blockIDHash, offset int) (string, error) {
 	return v, err
 }
 
-func (t *Transaction) WriteInt64(blk blockIDHash, offset int, val int64, log bool) error {
+func (t *Transaction) WriteInt64(blk BlockIDHash, offset int, val int64, log bool) error {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.xLock(ctx, blk)
@@ -178,7 +178,7 @@ func (t *Transaction) WriteInt64(blk blockIDHash, offset int, val int64, log boo
 	return buf.modify(t.txNum, lsn)
 }
 
-func (t *Transaction) WriteUint64(blk blockIDHash, offset int, val uint64, log bool) error {
+func (t *Transaction) WriteUint64(blk BlockIDHash, offset int, val uint64, log bool) error {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.xLock(ctx, blk)
@@ -204,7 +204,7 @@ func (t *Transaction) WriteUint64(blk blockIDHash, offset int, val uint64, log b
 	return buf.modify(t.txNum, lsn)
 }
 
-func (t *Transaction) WriteString(blk blockIDHash, offset int, val string, log bool) error {
+func (t *Transaction) WriteString(blk BlockIDHash, offset int, val string, log bool) error {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 	err := t.cm.xLock(ctx, blk)
@@ -234,19 +234,23 @@ func (t *Transaction) WriteString(blk blockIDHash, offset int, val string, log b
 func (t *Transaction) BlockCount(fileName string) (int, error) {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
-	dummyBlk := newBlockID(fileName, -1)
-	err := t.cm.sLock(ctx, dummyBlk.hash)
+	dummyBlk := NewBlockID(fileName, -1)
+	err := t.cm.sLock(ctx, dummyBlk.Hash)
 	if err != nil {
 		return 0, err
 	}
 	return t.fm.blockCount(fileName)
 }
 
-func (t *Transaction) AllocBlock(fileName string) (*blockID, error) {
+func (t *Transaction) BlockSize() int {
+	return t.fm.blkSize
+}
+
+func (t *Transaction) AllocBlock(fileName string) (*BlockID, error) {
 	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
-	dummyBlk := newBlockID(fileName, -1)
-	err := t.cm.xLock(ctx, dummyBlk.hash)
+	dummyBlk := NewBlockID(fileName, -1)
+	err := t.cm.xLock(ctx, dummyBlk.Hash)
 	if err != nil {
 		return nil, err
 	}
@@ -260,19 +264,19 @@ func (t *Transaction) AvailableBufferCount() int {
 
 type bufferList struct {
 	bm      *bufferManager
-	buffers map[blockIDHash]*buffer
-	pins    map[blockIDHash]int
+	buffers map[BlockIDHash]*buffer
+	pins    map[BlockIDHash]int
 }
 
 func newBufferList(bm *bufferManager) *bufferList {
 	return &bufferList{
 		bm:      bm,
-		buffers: map[blockIDHash]*buffer{},
-		pins:    map[blockIDHash]int{},
+		buffers: map[BlockIDHash]*buffer{},
+		pins:    map[BlockIDHash]int{},
 	}
 }
 
-func (l *bufferList) blockToBuffer(blk blockIDHash) (*buffer, error) {
+func (l *bufferList) blockToBuffer(blk BlockIDHash) (*buffer, error) {
 	buf, ok := l.buffers[blk]
 	if !ok {
 		return nil, fmt.Errorf("buffer was not found: block: %x", blk)
@@ -280,29 +284,29 @@ func (l *bufferList) blockToBuffer(blk blockIDHash) (*buffer, error) {
 	return buf, nil
 }
 
-func (l *bufferList) pin(blk *blockID) error {
+func (l *bufferList) pin(blk *BlockID) error {
 	buf, err := l.bm.pin(blk)
 	if err != nil {
 		return err
 	}
-	l.buffers[blk.hash] = buf
-	if pins, ok := l.pins[blk.hash]; ok {
-		l.pins[blk.hash] = pins + 1
+	l.buffers[blk.Hash] = buf
+	if pins, ok := l.pins[blk.Hash]; ok {
+		l.pins[blk.Hash] = pins + 1
 	} else {
-		l.pins[blk.hash] = 1
+		l.pins[blk.Hash] = 1
 	}
 	return nil
 }
 
-func (l *bufferList) unpin(blk *blockID) error {
-	buf := l.buffers[blk.hash]
+func (l *bufferList) unpin(blk *BlockID) error {
+	buf := l.buffers[blk.Hash]
 	err := l.bm.unpin(buf)
 	if err != nil {
 		return err
 	}
-	l.pins[blk.hash]--
-	if l.pins[blk.hash] == 0 {
-		delete(l.buffers, blk.hash)
+	l.pins[blk.Hash]--
+	if l.pins[blk.Hash] == 0 {
+		delete(l.buffers, blk.Hash)
 	}
 	return nil
 }
@@ -315,7 +319,7 @@ func (l *bufferList) unpinAll() error {
 			return err
 		}
 	}
-	l.buffers = map[blockIDHash]*buffer{}
-	l.pins = map[blockIDHash]int{}
+	l.buffers = map[BlockIDHash]*buffer{}
+	l.pins = map[BlockIDHash]int{}
 	return nil
 }

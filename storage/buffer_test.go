@@ -65,7 +65,7 @@ func TestBuffer(t *testing.T) {
 		if s != text1 {
 			t.Fatalf("an unexpected string is read: want: %#v, got: %#v", text1, s)
 		}
-		c, err := readString(dbFilePath, buf.blk.blkNum, blkSize)
+		c, err := readString(dbFilePath, buf.blk.BlkNum, blkSize)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +76,7 @@ func TestBuffer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err = readString(dbFilePath, buf.blk.blkNum, blkSize)
+		c, err = readString(dbFilePath, buf.blk.BlkNum, blkSize)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func TestBuffer(t *testing.T) {
 		if s != text2 {
 			t.Fatalf("an unexpected string is read: want: %#v, got: %#v", text2, s)
 		}
-		c, err = readString(dbFilePath, buf.blk.blkNum, blkSize)
+		c, err = readString(dbFilePath, buf.blk.BlkNum, blkSize)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +111,7 @@ func TestBuffer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err = readString(dbFilePath, buf.blk.blkNum, blkSize)
+		c, err = readString(dbFilePath, buf.blk.BlkNum, blkSize)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,7 +251,7 @@ func TestBufferManager(t *testing.T) {
 		// `buf1` must not be written out to a disk yet because the buffer manager doesn't flush the transaction
 		// corresponding to the modification of `buf1` yet.
 		{
-			p, err := loadOntoPage(dbFilePath, buf1.blk.blkNum, fm.blkSize)
+			p, err := loadOntoPage(dbFilePath, buf1.blk.BlkNum, fm.blkSize)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -266,7 +266,7 @@ func TestBufferManager(t *testing.T) {
 		// `buf2` must be written out to a disk because the buffer manager has flushed the transaction
 		// corresponding to the modification of `buf2`.
 		{
-			p, err := loadOntoPage(dbFilePath, buf2.blk.blkNum, fm.blkSize)
+			p, err := loadOntoPage(dbFilePath, buf2.blk.BlkNum, fm.blkSize)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -284,7 +284,7 @@ func TestBufferManager(t *testing.T) {
 			t.Fatal(err)
 		}
 		{
-			p, err := loadOntoPage(dbFilePath, buf1.blk.blkNum, fm.blkSize)
+			p, err := loadOntoPage(dbFilePath, buf1.blk.BlkNum, fm.blkSize)
 			if err != nil {
 				t.Fatal(err)
 			}

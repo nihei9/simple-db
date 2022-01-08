@@ -19,7 +19,7 @@ type buffer struct {
 	fm       *fileManager
 	lm       *logManager
 	contents *page
-	blk      *blockID
+	blk      *BlockID
 	modified bool
 	txNum    transactionNum
 	lsn      logSeqNum
@@ -62,7 +62,7 @@ func (b *buffer) pinned() bool {
 	return b.pins > 0
 }
 
-func (b *buffer) assign(blk *blockID) error {
+func (b *buffer) assign(blk *BlockID) error {
 	err := b.flush()
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (m *bufferManager) flushAll(txNum transactionNum) error {
 	return nil
 }
 
-func (m *bufferManager) pin(blk *blockID) (*buffer, error) {
+func (m *bufferManager) pin(blk *BlockID) (*buffer, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -173,7 +173,7 @@ func (m *bufferManager) pin(blk *blockID) (*buffer, error) {
 	}
 }
 
-func (m *bufferManager) tryToPin(blk *blockID) (*buffer, error) {
+func (m *bufferManager) tryToPin(blk *BlockID) (*buffer, error) {
 	buf := m.findAssignedBuffer(blk)
 	if buf == nil {
 		buf = m.chooseUnpinnedBuffer()
@@ -195,7 +195,7 @@ func (m *bufferManager) tryToPin(blk *blockID) (*buffer, error) {
 	return buf, nil
 }
 
-func (m *bufferManager) findAssignedBuffer(blk *blockID) *buffer {
+func (m *bufferManager) findAssignedBuffer(blk *BlockID) *buffer {
 	for _, buf := range m.pool {
 		// A block may not be assigned yet.
 		if buf.blk == nil {

@@ -11,16 +11,16 @@ import (
 	"sync"
 )
 
-type blockIDHash [32]byte
+type BlockIDHash [32]byte
 
-type blockID struct {
+type BlockID struct {
 	fileName string
-	blkNum   int
-	hash     blockIDHash
+	BlkNum   int
+	Hash     BlockIDHash
 }
 
-func newBlockID(fileName string, blkNum int) *blockID {
-	var h blockIDHash
+func NewBlockID(fileName string, blkNum int) *BlockID {
+	var h BlockIDHash
 	{
 		b := make([]byte, len(fileName)+binary.MaxVarintLen64)
 		sb := []byte(fileName)
@@ -32,15 +32,15 @@ func newBlockID(fileName string, blkNum int) *blockID {
 		h = sha256.Sum256(b)
 	}
 
-	return &blockID{
+	return &BlockID{
 		fileName: fileName,
-		blkNum:   blkNum,
-		hash:     h,
+		BlkNum:   blkNum,
+		Hash:     h,
 	}
 }
 
-func (id *blockID) equal(a *blockID) bool {
-	if id.fileName == a.fileName && id.blkNum == a.blkNum {
+func (id *BlockID) equal(a *BlockID) bool {
+	if id.fileName == a.fileName && id.BlkNum == a.BlkNum {
 		return true
 	}
 	return false
@@ -177,7 +177,7 @@ func (p *page) write(offset int, data []byte) (int, error) {
 	if offset < 0 || offset >= len(p.buf) {
 		return 0, fmt.Errorf("%w: block size: %v byte, offset: %v", errPageOffsetOutOfRange, len(p.buf), offset)
 	}
-	if offset+calcBytesNeeded(data) > len(p.buf) {
+	if offset+CalcBytesNeeded(len(data)) > len(p.buf) {
 		return 0, fmt.Errorf("%w: block size: %v byte, offset: %v, data size: %v byte", errPageTooBigData, len(p.buf), offset, len(data))
 	}
 
@@ -189,8 +189,8 @@ func (p *page) write(offset int, data []byte) (int, error) {
 	return len(b) + len(data), nil
 }
 
-func calcBytesNeeded(b []byte) int {
-	return binary.MaxVarintLen64 + len(b)
+func CalcBytesNeeded(dataSize int) int {
+	return binary.MaxVarintLen64 + dataSize
 }
 
 var (
@@ -265,7 +265,7 @@ func newFileManager(dirPath string, blkSize int) (*fileManager, error) {
 }
 
 // read reads the contents of a block into a page.
-func (m *fileManager) read(blk *blockID, p *page) error {
+func (m *fileManager) read(blk *BlockID, p *page) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -273,7 +273,7 @@ func (m *fileManager) read(blk *blockID, p *page) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.Seek(int64(blk.blkNum*m.blkSize), 0)
+	_, err = f.Seek(int64(blk.BlkNum*m.blkSize), 0)
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func (m *fileManager) read(blk *blockID, p *page) error {
 }
 
 // write writes the contents of a page to a block on a disk.
-func (m *fileManager) write(blk *blockID, p *page) error {
+func (m *fileManager) write(blk *BlockID, p *page) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -289,7 +289,7 @@ func (m *fileManager) write(blk *blockID, p *page) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.Seek(int64(blk.blkNum*m.blkSize), 0)
+	_, err = f.Seek(int64(blk.BlkNum*m.blkSize), 0)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (m *fileManager) write(blk *blockID, p *page) error {
 	return nil
 }
 
-func (m *fileManager) alloc(fileName string) (*blockID, error) {
+func (m *fileManager) alloc(fileName string) (*BlockID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -322,7 +322,7 @@ func (m *fileManager) alloc(fileName string) (*blockID, error) {
 		return nil, err
 	}
 
-	return newBlockID(fileName, blkNum), nil
+	return NewBlockID(fileName, blkNum), nil
 }
 
 func (m *fileManager) blockCount(fileName string) (int, error) {

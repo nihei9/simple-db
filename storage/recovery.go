@@ -55,34 +55,34 @@ func newCheckPointLogRecord() *logRecord {
 	}
 }
 
-func newSetInt64LogRecord(txNum transactionNum, blk *blockID, offset int, val int64) *logRecord {
+func newSetInt64LogRecord(txNum transactionNum, blk *BlockID, offset int, val int64) *logRecord {
 	return &logRecord{
 		Op:       opSetInt64,
 		TxNum:    txNum,
 		FileName: blk.fileName,
-		BlkNum:   blk.blkNum,
+		BlkNum:   blk.BlkNum,
 		Offset:   offset,
 		Val:      val,
 	}
 }
 
-func newSetUint64LogRecord(txNum transactionNum, blk *blockID, offset int, val uint64) *logRecord {
+func newSetUint64LogRecord(txNum transactionNum, blk *BlockID, offset int, val uint64) *logRecord {
 	return &logRecord{
 		Op:       opSetUint64,
 		TxNum:    txNum,
 		FileName: blk.fileName,
-		BlkNum:   blk.blkNum,
+		BlkNum:   blk.BlkNum,
 		Offset:   offset,
 		Val:      val,
 	}
 }
 
-func newSetStringLogRecord(txNum transactionNum, blk *blockID, offset int, val string) *logRecord {
+func newSetStringLogRecord(txNum transactionNum, blk *BlockID, offset int, val string) *logRecord {
 	return &logRecord{
 		Op:       opSetString,
 		TxNum:    txNum,
 		FileName: blk.fileName,
-		BlkNum:   blk.blkNum,
+		BlkNum:   blk.BlkNum,
 		Offset:   offset,
 		Val:      val,
 	}
@@ -227,7 +227,7 @@ func (m *recoveryManager) undo(tx *Transaction, rec *logRecord) error {
 		return nil
 	}
 
-	blk := newBlockID(rec.FileName, rec.BlkNum)
+	blk := NewBlockID(rec.FileName, rec.BlkNum)
 
 	err := tx.Pin(blk)
 	if err != nil {
@@ -236,11 +236,11 @@ func (m *recoveryManager) undo(tx *Transaction, rec *logRecord) error {
 
 	switch rec.Op {
 	case opSetInt64:
-		err = tx.WriteInt64(blk.hash, rec.Offset, rec.Val.(int64), false)
+		err = tx.WriteInt64(blk.Hash, rec.Offset, rec.Val.(int64), false)
 	case opSetUint64:
-		err = tx.WriteUint64(blk.hash, rec.Offset, rec.Val.(uint64), false)
+		err = tx.WriteUint64(blk.Hash, rec.Offset, rec.Val.(uint64), false)
 	case opSetString:
-		err = tx.WriteString(blk.hash, rec.Offset, rec.Val.(string), false)
+		err = tx.WriteString(blk.Hash, rec.Offset, rec.Val.(string), false)
 	}
 	if err != nil {
 		return err

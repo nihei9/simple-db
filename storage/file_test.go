@@ -10,10 +10,10 @@ import (
 )
 
 func TestBlockID_equal(t *testing.T) {
-	blk1 := newBlockID("foo", 0)
-	blk2 := newBlockID("foo", 1)
-	blk3 := newBlockID("bar", 0)
-	blk4 := newBlockID("foo", 0)
+	blk1 := NewBlockID("foo", 0)
+	blk2 := NewBlockID("foo", 1)
+	blk3 := NewBlockID("bar", 0)
+	blk4 := NewBlockID("foo", 0)
 	if blk1.equal(blk2) {
 		t.Fatalf("blk2 must be !=blk1")
 	}

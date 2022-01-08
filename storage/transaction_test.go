@@ -67,22 +67,22 @@ func TestTransaction_commit(t *testing.T) {
 				return err
 			}
 
-			err = tx.WriteInt64(blk.hash, 100, -1900, true)
+			err = tx.WriteInt64(blk.Hash, 100, -1900, true)
 			if err != nil {
 				return err
 			}
 
-			err = tx.WriteUint64(blk.hash, 150, 2022, true)
+			err = tx.WriteUint64(blk.Hash, 150, 2022, true)
 			if err != nil {
 				return err
 			}
 
-			err = tx.WriteString(blk.hash, 200, "Hello", true)
+			err = tx.WriteString(blk.Hash, 200, "Hello", true)
 			if err != nil {
 				return err
 			}
 
-			vInt64, err := tx.ReadInt64(blk.hash, 100)
+			vInt64, err := tx.ReadInt64(blk.Hash, 100)
 			if err != nil {
 				return err
 			}
@@ -90,7 +90,7 @@ func TestTransaction_commit(t *testing.T) {
 				t.Fatalf("unexpected value was read: want: %v, got: %v", -1900, vInt64)
 			}
 
-			vUint64, err := tx.ReadUint64(blk.hash, 150)
+			vUint64, err := tx.ReadUint64(blk.Hash, 150)
 			if err != nil {
 				return err
 			}
@@ -98,7 +98,7 @@ func TestTransaction_commit(t *testing.T) {
 				t.Fatalf("unexpected value was read: want: %v, got: %v", 2022, vUint64)
 			}
 
-			vString, err := tx.ReadString(blk.hash, 200)
+			vString, err := tx.ReadString(blk.Hash, 200)
 			if err != nil {
 				return err
 			}
@@ -151,7 +151,7 @@ func TestTransaction_rollback(t *testing.T) {
 	ctx := context.Background()
 	txNumC := runTransactionNumIssuer(ctx)
 
-	var blk *blockID
+	var blk *BlockID
 	{
 		txNum := <-txNumC
 		tx, err := newTransaction(ctx, txNum, fm, lm, bm, lockTab)
@@ -169,17 +169,17 @@ func TestTransaction_rollback(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteInt64(blk.hash, 100, -1900, true)
+		err = tx.WriteInt64(blk.Hash, 100, -1900, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteUint64(blk.hash, 150, 2022, true)
+		err = tx.WriteUint64(blk.Hash, 150, 2022, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteString(blk.hash, 200, "Hello", true)
+		err = tx.WriteString(blk.Hash, 200, "Hello", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -202,17 +202,17 @@ func TestTransaction_rollback(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteInt64(blk.hash, 100, -1700, true)
+		err = tx.WriteInt64(blk.Hash, 100, -1700, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteUint64(blk.hash, 150, 2099, true)
+		err = tx.WriteUint64(blk.Hash, 150, 2099, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteString(blk.hash, 200, "Bye", true)
+		err = tx.WriteString(blk.Hash, 200, "Bye", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -235,7 +235,7 @@ func TestTransaction_rollback(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		vInt64, err := tx.ReadInt64(blk.hash, 100)
+		vInt64, err := tx.ReadInt64(blk.Hash, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -243,7 +243,7 @@ func TestTransaction_rollback(t *testing.T) {
 			t.Fatalf("unexpected value was read: want: %v, got: %v", -1900, vInt64)
 		}
 
-		vUint64, err := tx.ReadUint64(blk.hash, 150)
+		vUint64, err := tx.ReadUint64(blk.Hash, 150)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,7 +251,7 @@ func TestTransaction_rollback(t *testing.T) {
 			t.Fatalf("unexpected value was read: want: %v, got: %v", 2022, vUint64)
 		}
 
-		vString, err := tx.ReadString(blk.hash, 200)
+		vString, err := tx.ReadString(blk.Hash, 200)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -292,7 +292,7 @@ func TestTransaction_recover(t *testing.T) {
 	ctx := context.Background()
 	txNumC := runTransactionNumIssuer(ctx)
 
-	var blk *blockID
+	var blk *BlockID
 	{
 		txNum := <-txNumC
 		tx, err := newTransaction(ctx, txNum, fm, lm, bm, lockTab)
@@ -310,17 +310,17 @@ func TestTransaction_recover(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteInt64(blk.hash, 100, -1900, true)
+		err = tx.WriteInt64(blk.Hash, 100, -1900, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteUint64(blk.hash, 150, 2022, true)
+		err = tx.WriteUint64(blk.Hash, 150, 2022, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteString(blk.hash, 200, "Hello", true)
+		err = tx.WriteString(blk.Hash, 200, "Hello", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -343,17 +343,17 @@ func TestTransaction_recover(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteInt64(blk.hash, 100, -1700, true)
+		err = tx.WriteInt64(blk.Hash, 100, -1700, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteUint64(blk.hash, 150, 2099, true)
+		err = tx.WriteUint64(blk.Hash, 150, 2099, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = tx.WriteString(blk.hash, 200, "Bye", true)
+		err = tx.WriteString(blk.Hash, 200, "Bye", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -383,7 +383,7 @@ func TestTransaction_recover(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		vInt64, err := tx.ReadInt64(blk.hash, 100)
+		vInt64, err := tx.ReadInt64(blk.Hash, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -391,7 +391,7 @@ func TestTransaction_recover(t *testing.T) {
 			t.Fatalf("unexpected value was read: want: %v, got: %v", -1900, vInt64)
 		}
 
-		vUint64, err := tx.ReadUint64(blk.hash, 150)
+		vUint64, err := tx.ReadUint64(blk.Hash, 150)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -399,7 +399,7 @@ func TestTransaction_recover(t *testing.T) {
 			t.Fatalf("unexpected value was read: want: %v, got: %v", 2022, vUint64)
 		}
 
-		vString, err := tx.ReadString(blk.hash, 200)
+		vString, err := tx.ReadString(blk.Hash, 200)
 		if err != nil {
 			t.Fatal(err)
 		}

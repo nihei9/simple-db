@@ -9,7 +9,7 @@ const lsnNil logSeqNum = 0
 type logManager struct {
 	fm           *fileManager
 	logFileName  string
-	currentBlk   *blockID
+	currentBlk   *BlockID
 	logPage      *page
 	freeBytes    int
 	latestLSN    logSeqNum
@@ -48,7 +48,7 @@ func newLogManager(fm *fileManager, logFileName string) (*logManager, error) {
 			return nil, err
 		}
 	} else {
-		m.currentBlk = newBlockID(logFileName, c-1)
+		m.currentBlk = NewBlockID(logFileName, c-1)
 		err := fm.read(m.currentBlk, m.logPage)
 		if err != nil {
 			return nil, err
@@ -66,7 +66,7 @@ func (m *logManager) appendLog(logRec []byte) (logSeqNum, error) {
 	if err != nil {
 		return lsnNil, err
 	}
-	bytesNeeded := calcBytesNeeded(logRec)
+	bytesNeeded := CalcBytesNeeded(len(logRec))
 	if bytesNeeded > m.freeBytes {
 		err := m.flushAllNoLock()
 		if err != nil {
@@ -95,7 +95,7 @@ func (m *logManager) appendLog(logRec []byte) (logSeqNum, error) {
 	return m.latestLSN, nil
 }
 
-func (m *logManager) allocBlock() (*blockID, error) {
+func (m *logManager) allocBlock() (*BlockID, error) {
 	blk, err := m.fm.alloc(m.logFileName)
 	if err != nil {
 		return nil, err
@@ -163,11 +163,11 @@ func (m *logManager) apply(f func(rec []byte) (bool, error)) error {
 	offset := int(boundary)
 	for {
 		if offset >= m.fm.blkSize {
-			if blk.blkNum <= 0 {
+			if blk.BlkNum <= 0 {
 				return nil
 			}
 
-			blk = newBlockID(blk.fileName, blk.blkNum-1)
+			blk = NewBlockID(blk.fileName, blk.BlkNum-1)
 			err := m.fm.read(blk, p)
 			if err != nil {
 				return err

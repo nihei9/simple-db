@@ -32,7 +32,7 @@ func newLockTable() *lockTable {
 	}
 }
 
-func (t *lockTable) sLock(ctx context.Context, blk blockIDHash) error {
+func (t *lockTable) sLock(ctx context.Context, blk BlockIDHash) error {
 	var e *lockEntry
 	{
 		v, ok := t.locks.Load(blk)
@@ -52,7 +52,7 @@ func (t *lockTable) sLock(ctx context.Context, blk blockIDHash) error {
 	return nil
 }
 
-func (t *lockTable) xLock(ctx context.Context, blk blockIDHash) error {
+func (t *lockTable) xLock(ctx context.Context, blk BlockIDHash) error {
 	var e *lockEntry
 	{
 		v, ok := t.locks.Load(blk)
@@ -70,7 +70,7 @@ func (t *lockTable) xLock(ctx context.Context, blk blockIDHash) error {
 	return nil
 }
 
-func (t *lockTable) sUnlock(blk blockIDHash) {
+func (t *lockTable) sUnlock(blk BlockIDHash) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -91,7 +91,7 @@ func (t *lockTable) sUnlock(blk blockIDHash) {
 	}
 }
 
-func (t *lockTable) xUnlock(blk blockIDHash) {
+func (t *lockTable) xUnlock(blk BlockIDHash) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -112,7 +112,7 @@ func (t *lockTable) xUnlock(blk blockIDHash) {
 	}
 }
 
-func (t *lockTable) addEntry(blk blockIDHash) *lockEntry {
+func (t *lockTable) addEntry(blk BlockIDHash) *lockEntry {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -127,17 +127,17 @@ func (t *lockTable) addEntry(blk blockIDHash) *lockEntry {
 
 type concurrencyManager struct {
 	lockTab *lockTable
-	locks   map[blockIDHash]string
+	locks   map[BlockIDHash]string
 }
 
 func newConcurrencyManager(lockTab *lockTable) *concurrencyManager {
 	return &concurrencyManager{
 		lockTab: lockTab,
-		locks:   map[blockIDHash]string{},
+		locks:   map[BlockIDHash]string{},
 	}
 }
 
-func (m *concurrencyManager) sLock(ctx context.Context, blk blockIDHash) error {
+func (m *concurrencyManager) sLock(ctx context.Context, blk BlockIDHash) error {
 	_, ok := m.locks[blk]
 	if ok {
 		return nil
@@ -150,7 +150,7 @@ func (m *concurrencyManager) sLock(ctx context.Context, blk blockIDHash) error {
 	return nil
 }
 
-func (m *concurrencyManager) xLock(ctx context.Context, blk blockIDHash) error {
+func (m *concurrencyManager) xLock(ctx context.Context, blk BlockIDHash) error {
 	if m.xLocked(blk) {
 		return nil
 	}
@@ -176,10 +176,10 @@ func (m *concurrencyManager) release() {
 			m.lockTab.xUnlock(blk)
 		}
 	}
-	m.locks = map[blockIDHash]string{}
+	m.locks = map[BlockIDHash]string{}
 }
 
-func (m *concurrencyManager) xLocked(blk blockIDHash) bool {
+func (m *concurrencyManager) xLocked(blk BlockIDHash) bool {
 	l, ok := m.locks[blk]
 	if ok && l == "x" {
 		return true
