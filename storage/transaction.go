@@ -306,6 +306,7 @@ func (l *bufferList) unpin(blk *BlockID) error {
 	}
 	l.pins[blk.Hash]--
 	if l.pins[blk.Hash] == 0 {
+		delete(l.pins, blk.Hash)
 		delete(l.buffers, blk.Hash)
 	}
 	return nil
