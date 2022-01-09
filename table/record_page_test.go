@@ -165,5 +165,13 @@ func makeTestLogFileAndDBFile(dir string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	_, err = os.Create(filepath.Join(dir, "table_catalog.tbl"))
+	if err != nil {
+		return "", "", err
+	}
+	_, err = os.Create(filepath.Join(dir, "field_catalog.tbl"))
+	if err != nil {
+		return "", "", err
+	}
 	return logFile.Name(), dbFile.Name(), nil
 }
