@@ -8,96 +8,105 @@ import (
 	"github.com/nihei9/simple-db/storage"
 )
 
-type fieldType string
+type FieldType string
 
 const (
-	fieldTypeInt64  = "int64"
-	fieldTypeUint64 = "uint64"
-	fieldTypeString = "string"
+	FieldTypeInt64  FieldType = "int64"
+	FieldTypeUint64 FieldType = "uint64"
+	FieldTypeString FieldType = "string"
 )
 
-type field struct {
-	ty     fieldType
+type Field struct {
+	Ty     FieldType
 	length int
 }
 
-func newInt64Field() *field {
-	return &field{
-		ty: fieldTypeInt64,
+func NewInt64Field() *Field {
+	return &Field{
+		Ty: FieldTypeInt64,
 	}
 }
 
-func newUint64Field() *field {
-	return &field{
-		ty: fieldTypeUint64,
+func NewUint64Field() *Field {
+	return &Field{
+		Ty: FieldTypeUint64,
 	}
 }
 
-func newStringField(length int) *field {
-	return &field{
-		ty:     fieldTypeString,
+func NewStringField(length int) *Field {
+	return &Field{
+		Ty:     FieldTypeString,
 		length: length,
 	}
 }
 
 type namedField struct {
-	*field
+	*Field
 	name string
 }
 
-func newNamedField(name string, f *field) *namedField {
+func newNamedField(name string, f *Field) *namedField {
 	return &namedField{
-		field: f,
+		Field: f,
 		name:  name,
 	}
 }
 
-type schema struct {
+type Schema struct {
 	fields []*namedField
 }
 
-func newShcema() *schema {
-	return &schema{
+func NewShcema() *Schema {
+	return &Schema{
 		fields: []*namedField{},
 	}
 }
 
-func (s *schema) add(name string, f *field) {
+func (s *Schema) Add(name string, f *Field) {
 	s.fields = append(s.fields, newNamedField(name, f))
 }
 
-type layout struct {
-	schema   *schema
+func (s *Schema) Field(name string) (*Field, error) {
+	for _, f := range s.fields {
+		if f.name == name {
+			return f.Field, nil
+		}
+	}
+	return nil, fmt.Errorf("a field was not found: %v", name)
+}
+
+type Layout struct {
+	schema   *Schema
 	offsets  map[string]int
 	slotSize int
 }
 
-func newLayout(schema *schema) *layout {
+func NewLayout(schema *Schema) *Layout {
 	offsets := map[string]int{}
 	pos := storage.CalcBytesNeeded(binary.MaxVarintLen64)
 	for _, f := range schema.fields {
 		offsets[f.name] = pos
 		var bytesNeeded int
-		switch f.ty {
-		case fieldTypeInt64:
+		switch f.Ty {
+		case FieldTypeInt64:
 			bytesNeeded = storage.CalcBytesNeeded(binary.MaxVarintLen64)
-		case fieldTypeUint64:
+		case FieldTypeUint64:
 			bytesNeeded = storage.CalcBytesNeeded(binary.MaxVarintLen64)
-		case fieldTypeString:
+		case FieldTypeString:
 			bytesNeeded = storage.CalcBytesNeeded(f.length * utf8.UTFMax)
 		}
 		pos += bytesNeeded
 	}
 	slotSize := pos
 
-	return &layout{
+	return &Layout{
 		schema:   schema,
 		offsets:  offsets,
 		slotSize: slotSize,
 	}
 }
 
-func (l *layout) offset(fieldName string) (int, error) {
+func (l *Layout) offset(fieldName string) (int, error) {
 	v, ok := l.offsets[fieldName]
 	if !ok {
 		return 0, fmt.Errorf("invalid field name: %v", fieldName)
@@ -112,10 +121,10 @@ type slotNum int
 type recordPage struct {
 	tx     *storage.Transaction
 	blk    *storage.BlockID
-	layout *layout
+	layout *Layout
 }
 
-func newRecordPage(tx *storage.Transaction, blk *storage.BlockID, layout *layout) (*recordPage, error) {
+func newRecordPage(tx *storage.Transaction, blk *storage.BlockID, layout *Layout) (*recordPage, error) {
 	err := tx.Pin(blk)
 	if err != nil {
 		return nil, err
@@ -209,12 +218,12 @@ func (p *recordPage) formatSlot(slot slotNum) error {
 		if err != nil {
 			return err
 		}
-		switch f.ty {
-		case fieldTypeInt64:
+		switch f.Ty {
+		case FieldTypeInt64:
 			err = p.tx.WriteInt64(p.blk.Hash, offset, 0, false)
-		case fieldTypeUint64:
+		case FieldTypeUint64:
 			err = p.tx.WriteUint64(p.blk.Hash, offset, 0, false)
-		case fieldTypeString:
+		case FieldTypeString:
 			err = p.tx.WriteString(p.blk.Hash, offset, "", false)
 		}
 		if err != nil {

@@ -39,12 +39,12 @@ func TestTableScanner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sc := newShcema()
-	sc.add("A", newInt64Field())
-	sc.add("B", newUint64Field())
-	sc.add("C", newStringField(10))
+	sc := NewShcema()
+	sc.Add("A", NewInt64Field())
+	sc.Add("B", NewUint64Field())
+	sc.Add("C", NewStringField(10))
 
-	la := newLayout(sc)
+	la := NewLayout(sc)
 
 	tx, err := st.NewTransaction()
 	if err != nil {

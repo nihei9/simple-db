@@ -47,10 +47,10 @@ func TestMetadataManager_tableManager(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sc := newShcema()
-	sc.add("A", newInt64Field())
-	sc.add("B", newUint64Field())
-	sc.add("C", newStringField(32))
+	sc := NewShcema()
+	sc.Add("A", NewInt64Field())
+	sc.Add("B", NewUint64Field())
+	sc.Add("C", NewStringField(32))
 
 	err = mm.CreateTable(tx, dbFileName, sc)
 	if err != nil {

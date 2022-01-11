@@ -40,12 +40,12 @@ func TestRecordPage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sc := newShcema()
-	sc.add("A", newInt64Field())
-	sc.add("B", newUint64Field())
-	sc.add("C", newStringField(9))
+	sc := NewShcema()
+	sc.Add("A", NewInt64Field())
+	sc.Add("B", NewUint64Field())
+	sc.Add("C", NewStringField(9))
 
-	la := newLayout(sc)
+	la := NewLayout(sc)
 
 	tx, err := st.NewTransaction()
 	if err != nil {

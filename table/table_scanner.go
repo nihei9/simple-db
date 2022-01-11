@@ -10,12 +10,12 @@ import (
 type TableScanner struct {
 	tx            *storage.Transaction
 	tableFileName string
-	layout        *layout
+	layout        *Layout
 	recPage       *recordPage
 	currentSlot   slotNum
 }
 
-func NewTableScanner(tx *storage.Transaction, tableName string, layout *layout) (*TableScanner, error) {
+func NewTableScanner(tx *storage.Transaction, tableName string, layout *Layout) (*TableScanner, error) {
 	s := &TableScanner{
 		tx:            tx,
 		tableFileName: fmt.Sprintf("%v.tbl", tableName),

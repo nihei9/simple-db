@@ -21,34 +21,34 @@ func NewMetadataManager(isNew bool, tx *storage.Transaction) (*MetadataManager, 
 	}, nil
 }
 
-func (m *MetadataManager) CreateTable(tx *storage.Transaction, tabName string, sc *schema) error {
+func (m *MetadataManager) CreateTable(tx *storage.Transaction, tabName string, sc *Schema) error {
 	return m.tm.createTable(tx, tabName, sc)
 }
 
-func (m *MetadataManager) FindLayout(tx *storage.Transaction, tabName string) (*layout, error) {
+func (m *MetadataManager) FindLayout(tx *storage.Transaction, tabName string) (*Layout, error) {
 	return m.tm.findLayout(tx, tabName)
 }
 
 type tableManager struct {
-	tabCatLayout *layout
-	fldCatLayout *layout
+	tabCatLayout *Layout
+	fldCatLayout *Layout
 }
 
 func newTableManager(isNew bool, tx *storage.Transaction) (*tableManager, error) {
-	tabCatSchema := newShcema()
-	tabCatSchema.add("table_name", newStringField(64))
-	tabCatSchema.add("slot_size", newInt64Field())
+	tabCatSchema := NewShcema()
+	tabCatSchema.Add("table_name", NewStringField(64))
+	tabCatSchema.Add("slot_size", NewInt64Field())
 
-	fldCatSchema := newShcema()
-	fldCatSchema.add("table_name", newStringField(64))
-	fldCatSchema.add("field_name", newStringField(64))
-	fldCatSchema.add("type", newInt64Field())
-	fldCatSchema.add("length", newInt64Field())
-	fldCatSchema.add("offset", newInt64Field())
+	fldCatSchema := NewShcema()
+	fldCatSchema.Add("table_name", NewStringField(64))
+	fldCatSchema.Add("field_name", NewStringField(64))
+	fldCatSchema.Add("type", NewInt64Field())
+	fldCatSchema.Add("length", NewInt64Field())
+	fldCatSchema.Add("offset", NewInt64Field())
 
 	m := &tableManager{
-		tabCatLayout: newLayout(tabCatSchema),
-		fldCatLayout: newLayout(fldCatSchema),
+		tabCatLayout: NewLayout(tabCatSchema),
+		fldCatLayout: NewLayout(fldCatSchema),
 	}
 
 	if isNew {
@@ -65,8 +65,8 @@ func newTableManager(isNew bool, tx *storage.Transaction) (*tableManager, error)
 	return m, nil
 }
 
-func (m *tableManager) createTable(tx *storage.Transaction, tabName string, sc *schema) error {
-	la := newLayout(sc)
+func (m *tableManager) createTable(tx *storage.Transaction, tabName string, sc *Schema) error {
+	la := NewLayout(sc)
 
 	tabCat, err := NewTableScanner(tx, "table_catalog", m.tabCatLayout)
 	if err != nil {
@@ -106,7 +106,7 @@ func (m *tableManager) createTable(tx *storage.Transaction, tabName string, sc *
 		if err != nil {
 			return err
 		}
-		err = fldCat.WriteString("type", string(f.ty))
+		err = fldCat.WriteString("type", string(f.Ty))
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func (m *tableManager) createTable(tx *storage.Transaction, tabName string, sc *
 	return nil
 }
 
-func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*layout, error) {
+func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*Layout, error) {
 	var slotSize int
 	{
 		tabCat, err := NewTableScanner(tx, "table_catalog", m.tabCatLayout)
@@ -155,7 +155,7 @@ func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*lay
 		}
 	}
 
-	sc := newShcema()
+	sc := NewShcema()
 	offsets := map[string]int{}
 	{
 		fldCat, err := NewTableScanner(tx, "field_catalog", m.fldCatLayout)
@@ -194,25 +194,25 @@ func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*lay
 					return nil, err
 				}
 
-				var fld *field
-				switch ty {
-				case fieldTypeInt64:
-					fld = newInt64Field()
-				case fieldTypeUint64:
-					fld = newUint64Field()
-				case fieldTypeString:
-					fld = newStringField(int(length))
+				var fld *Field
+				switch FieldType(ty) {
+				case FieldTypeInt64:
+					fld = NewInt64Field()
+				case FieldTypeUint64:
+					fld = NewUint64Field()
+				case FieldTypeString:
+					fld = NewStringField(int(length))
 				default:
 					return nil, fmt.Errorf("invalid field type: %v", ty)
 				}
-				sc.add(name, fld)
+				sc.Add(name, fld)
 
 				offsets[name] = int(offset)
 			}
 		}
 	}
 
-	return &layout{
+	return &Layout{
 		schema:   sc,
 		offsets:  offsets,
 		slotSize: slotSize,
