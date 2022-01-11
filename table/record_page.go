@@ -66,13 +66,13 @@ func (s *Schema) Add(name string, f *Field) {
 	s.fields = append(s.fields, newNamedField(name, f))
 }
 
-func (s *Schema) Field(name string) (*Field, error) {
+func (s *Schema) Field(name string) (*Field, bool) {
 	for _, f := range s.fields {
 		if f.name == name {
-			return f.Field, nil
+			return f.Field, true
 		}
 	}
-	return nil, fmt.Errorf("a field was not found: %v", name)
+	return nil, false
 }
 
 type Layout struct {
