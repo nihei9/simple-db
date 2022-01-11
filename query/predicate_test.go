@@ -67,3 +67,37 @@ func TestStringConstant(t *testing.T) {
 		t.Fatal("asUint64 must return `false`")
 	}
 }
+
+func TestConstantExpression(t *testing.T) {
+	e := newConstantExpression(newStringConstant("Hello"))
+
+	v, ok := e.asConstant()
+	if !ok {
+		t.Fatal("asConstant must return `true`")
+	}
+	if s, ok := v.asString(); !ok || s != "Hello" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Hello", s)
+	}
+
+	_, ok = e.asFieldName()
+	if ok {
+		t.Fatal("asFieldName must return `false`")
+	}
+}
+
+func TestFieldNameExpression(t *testing.T) {
+	e := newFieldNameExpression("Fox")
+
+	v, ok := e.asFieldName()
+	if !ok {
+		t.Fatal("asFieldName must return `true`")
+	}
+	if v != "Fox" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Fox", v)
+	}
+
+	_, ok = e.asConstant()
+	if ok {
+		t.Fatal("asConstant must return `false`")
+	}
+}

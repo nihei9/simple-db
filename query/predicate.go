@@ -65,3 +65,49 @@ func (c stringConstant) asUint64() (uint64, bool) {
 func (c stringConstant) asString() (string, bool) {
 	return string(c), true
 }
+
+type expression interface {
+	asConstant() (constant, bool)
+	asFieldName() (string, bool)
+}
+
+var (
+	_ expression = &constantExpression{}
+	_ expression = &fieldNameExpression{}
+)
+
+type constantExpression struct {
+	c constant
+}
+
+func newConstantExpression(c constant) *constantExpression {
+	return &constantExpression{
+		c: c,
+	}
+}
+
+func (e *constantExpression) asConstant() (constant, bool) {
+	return e.c, true
+}
+
+func (e *constantExpression) asFieldName() (string, bool) {
+	return "", false
+}
+
+type fieldNameExpression struct {
+	name string
+}
+
+func newFieldNameExpression(name string) *fieldNameExpression {
+	return &fieldNameExpression{
+		name: name,
+	}
+}
+
+func (e *fieldNameExpression) asConstant() (constant, bool) {
+	return nil, false
+}
+
+func (e *fieldNameExpression) asFieldName() (string, bool) {
+	return e.name, true
+}
