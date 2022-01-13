@@ -17,7 +17,10 @@ type scanner interface {
 	Close() error
 }
 
-var _ scanner = &projectScanner{}
+var (
+	_ scanner = &projectScanner{}
+	_ scanner = &productScanner{}
+)
 
 type updateScanner interface {
 	scanner
@@ -209,4 +212,106 @@ func (s *projectScanner) Read(fieldName string) (constant, error) {
 func (s *projectScanner) Contain(fieldName string) bool {
 	_, ok := s.fields[fieldName]
 	return ok
+}
+
+type productScanner struct {
+	s1 scanner
+	s2 scanner
+}
+
+func newProductScanner(s1, s2 scanner) *productScanner {
+	return &productScanner{
+		s1: s1,
+		s2: s2,
+	}
+}
+
+func (s *productScanner) BeforeFirst() error {
+	err := s.s1.BeforeFirst()
+	if err != nil {
+		return err
+	}
+	_, err = s.s1.Next()
+	if err != nil {
+		return err
+	}
+	err = s.s2.BeforeFirst()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *productScanner) Next() (bool, error) {
+	ok, err := s.s2.Next()
+	if err != nil {
+		return false, err
+	}
+	if ok {
+		return true, nil
+	}
+
+	err = s.s2.BeforeFirst()
+	if err != nil {
+		return false, err
+	}
+	ok, err = s.s2.Next()
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	ok, err = s.s1.Next()
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *productScanner) ReadInt64(fieldName string) (int64, error) {
+	if s.s1.Contain(fieldName) {
+		return s.s1.ReadInt64(fieldName)
+	}
+	return s.s2.ReadInt64(fieldName)
+}
+
+func (s *productScanner) ReadUint64(fieldName string) (uint64, error) {
+	if s.s1.Contain(fieldName) {
+		return s.s1.ReadUint64(fieldName)
+	}
+	return s.s2.ReadUint64(fieldName)
+}
+
+func (s *productScanner) ReadString(fieldName string) (string, error) {
+	if s.s1.Contain(fieldName) {
+		return s.s1.ReadString(fieldName)
+	}
+	return s.s2.ReadString(fieldName)
+}
+
+func (s *productScanner) Read(fieldName string) (constant, error) {
+	if s.s1.Contain(fieldName) {
+		return s.s1.Read(fieldName)
+	}
+	return s.s2.Read(fieldName)
+}
+
+func (s *productScanner) Contain(fieldName string) bool {
+	return s.s1.Contain(fieldName) || s.s2.Contain(fieldName)
+}
+
+func (s *productScanner) Close() error {
+	err := s.s1.Close()
+	if err != nil {
+		return err
+	}
+	err = s.s2.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }

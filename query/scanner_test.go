@@ -493,12 +493,393 @@ func TestProjectScanner(t *testing.T) {
 	}
 }
 
+func TestProductScanner(t *testing.T) {
+	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(testDir)
+
+	var logFileName string
+	var tmpTable1Name string
+	var tmpTable2Name string
+	{
+		logFilePath, err := makeTestLogFile(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logFileName = filepath.Base(logFilePath)
+
+		err = makeTestMetaDataDBFiles(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		dbFile1Path, err := makeTestDBFile(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tmpTable1Name = strings.TrimSuffix(filepath.Base(dbFile1Path), ".tbl")
+
+		dbFile2Path, err := makeTestDBFile(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tmpTable2Name = strings.TrimSuffix(filepath.Base(dbFile2Path), ".tbl")
+	}
+
+	st, err := storage.InitStorage(context.Background(), &storage.StorageConfig{
+		DirPath:     testDir,
+		LogFileName: logFileName,
+		BlkSize:     400,
+		BufSize:     10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ts1 *tableScanner
+	{
+		sc := table.NewShcema()
+		sc.Add("character_id", table.NewInt64Field())
+		sc.Add("character_name", table.NewStringField(10))
+
+		la := table.NewLayout(sc)
+
+		tx, err := st.NewTransaction()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Write test data
+		{
+			s, err := table.NewTableScanner(tx, tmpTable1Name, la)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.BeforeFirst()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = s.Insert()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteInt64("character_id", 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteString("character_name", "John Doggett")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = s.Insert()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteInt64("character_id", 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteString("character_name", "Monica Reyes")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		s, err := table.NewTableScanner(tx, tmpTable1Name, la)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ts1 = newTableScanner(s, sc)
+	}
+
+	var ts2 *tableScanner
+	{
+		sc := table.NewShcema()
+		sc.Add("actor_id", table.NewInt64Field())
+		sc.Add("actor_name", table.NewStringField(10))
+
+		la := table.NewLayout(sc)
+
+		tx, err := st.NewTransaction()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Write test data
+		{
+			s, err := table.NewTableScanner(tx, tmpTable2Name, la)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.BeforeFirst()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = s.Insert()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteInt64("actor_id", 101)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteString("actor_name", "Robert Patrick")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = s.Insert()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteInt64("actor_id", 102)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.WriteString("actor_name", "Annabeth Gish")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		s, err := table.NewTableScanner(tx, tmpTable2Name, la)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ts2 = newTableScanner(s, sc)
+	}
+
+	ps := newProductScanner(ts1, ts2)
+
+	err = ps.BeforeFirst()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := ps.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("a record was not found")
+	}
+	v, err := ps.Read("character_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok := v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 1 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 1, i)
+	}
+	v, err = ps.Read("character_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "John Doggett" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "John Doggett", s)
+	}
+	v, err = ps.Read("actor_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 101 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 101, i)
+	}
+	v, err = ps.Read("actor_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Robert Patrick" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Robert Patrick", s)
+	}
+
+	ok, err = ps.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("a record was not found")
+	}
+	v, err = ps.Read("character_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 1 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 1, i)
+	}
+	v, err = ps.Read("character_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "John Doggett" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "John Doggett", s)
+	}
+	v, err = ps.Read("actor_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 102 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 102, i)
+	}
+	v, err = ps.Read("actor_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Annabeth Gish" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Annabeth Gish", s)
+	}
+
+	ok, err = ps.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("a record was not found")
+	}
+	v, err = ps.Read("character_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 2 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 2, i)
+	}
+	v, err = ps.Read("character_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Monica Reyes" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Monica Reyes", s)
+	}
+	v, err = ps.Read("actor_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 101 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 101, i)
+	}
+	v, err = ps.Read("actor_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Robert Patrick" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Robert Patrick", s)
+	}
+
+	ok, err = ps.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("a record was not found")
+	}
+	v, err = ps.Read("character_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 2 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 2, i)
+	}
+	v, err = ps.Read("character_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Monica Reyes" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Monica Reyes", s)
+	}
+	v, err = ps.Read("actor_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, ok = v.asInt64()
+	if !ok {
+		t.Fatal("asInt64 must return `true`")
+	}
+	if i != 102 {
+		t.Fatalf("unexpected value: want: %v, got: %v", 102, i)
+	}
+	v, err = ps.Read("actor_name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok = v.asString()
+	if !ok {
+		t.Fatal("asString must return `true`")
+	}
+	if s != "Annabeth Gish" {
+		t.Fatalf("unexpected value: want: %#v, got: %#v", "Annabeth Gish", s)
+	}
+
+	ok, err = ps.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("Next must return `false`")
+	}
+}
+
 func makeTestLogFileAndDBFile(dir string) (string, string, error) {
 	logFile, err := ioutil.TempFile(dir, "*.log")
-	if err != nil {
-		return "", "", err
-	}
-	dbFile, err := ioutil.TempFile(dir, "*.tbl")
 	if err != nil {
 		return "", "", err
 	}
@@ -510,5 +891,37 @@ func makeTestLogFileAndDBFile(dir string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	dbFile, err := ioutil.TempFile(dir, "*.tbl")
+	if err != nil {
+		return "", "", err
+	}
 	return logFile.Name(), dbFile.Name(), nil
+}
+
+func makeTestLogFile(dir string) (string, error) {
+	logFile, err := ioutil.TempFile(dir, "*.log")
+	if err != nil {
+		return "", err
+	}
+	return logFile.Name(), nil
+}
+
+func makeTestMetaDataDBFiles(dir string) error {
+	_, err := os.Create(filepath.Join(dir, "table_catalog.tbl"))
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(filepath.Join(dir, "field_catalog.tbl"))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func makeTestDBFile(dir string) (string, error) {
+	dbFile, err := ioutil.TempFile(dir, "*.tbl")
+	if err != nil {
+		return "", err
+	}
+	return dbFile.Name(), nil
 }
