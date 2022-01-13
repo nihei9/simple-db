@@ -17,6 +17,8 @@ type scanner interface {
 	Close() error
 }
 
+var _ scanner = &projectScanner{}
+
 type updateScanner interface {
 	scanner
 
@@ -32,7 +34,10 @@ var (
 	_ updateScanner = &selectScanner{}
 )
 
-var scannerNotUpdetable = fmt.Errorf("a scanner is not a updatable")
+var (
+	errScannerNotUpdetable  = fmt.Errorf("a scanner is not a updatable")
+	errScannerFieldNotFound = fmt.Errorf("a scanner does not contain a field")
+)
 
 type tableScanner struct {
 	*table.TableScanner
@@ -118,7 +123,7 @@ func (s *selectScanner) Next() (bool, error) {
 func (s *selectScanner) WriteInt64(fieldName string, val int64) error {
 	us, ok := s.scanner.(updateScanner)
 	if !ok {
-		return scannerNotUpdetable
+		return errScannerNotUpdetable
 	}
 	return us.WriteInt64(fieldName, val)
 }
@@ -126,7 +131,7 @@ func (s *selectScanner) WriteInt64(fieldName string, val int64) error {
 func (s *selectScanner) WriteUint64(fieldName string, val uint64) error {
 	us, ok := s.scanner.(updateScanner)
 	if !ok {
-		return scannerNotUpdetable
+		return errScannerNotUpdetable
 	}
 	return us.WriteUint64(fieldName, val)
 }
@@ -134,7 +139,7 @@ func (s *selectScanner) WriteUint64(fieldName string, val uint64) error {
 func (s *selectScanner) WriteString(fieldName string, val string) error {
 	us, ok := s.scanner.(updateScanner)
 	if !ok {
-		return scannerNotUpdetable
+		return errScannerNotUpdetable
 	}
 	return us.WriteString(fieldName, val)
 }
@@ -142,7 +147,7 @@ func (s *selectScanner) WriteString(fieldName string, val string) error {
 func (s *selectScanner) Insert() error {
 	us, ok := s.scanner.(updateScanner)
 	if !ok {
-		return scannerNotUpdetable
+		return errScannerNotUpdetable
 	}
 	return us.Insert()
 }
@@ -150,7 +155,58 @@ func (s *selectScanner) Insert() error {
 func (s *selectScanner) Delete() error {
 	us, ok := s.scanner.(updateScanner)
 	if !ok {
-		return scannerNotUpdetable
+		return errScannerNotUpdetable
 	}
 	return us.Delete()
+}
+
+type projectScanner struct {
+	scanner
+
+	fields map[string]struct{}
+}
+
+func newProjectScanner(s scanner, fields []string) *projectScanner {
+	fs := map[string]struct{}{}
+	for _, f := range fields {
+		fs[f] = struct{}{}
+	}
+
+	return &projectScanner{
+		scanner: s,
+		fields:  fs,
+	}
+}
+
+func (s *projectScanner) ReadInt64(fieldName string) (int64, error) {
+	if !s.Contain(fieldName) {
+		return 0, errScannerFieldNotFound
+	}
+	return s.scanner.ReadInt64(fieldName)
+}
+
+func (s *projectScanner) ReadUint64(fieldName string) (uint64, error) {
+	if !s.Contain(fieldName) {
+		return 0, errScannerFieldNotFound
+	}
+	return s.scanner.ReadUint64(fieldName)
+}
+
+func (s *projectScanner) ReadString(fieldName string) (string, error) {
+	if !s.Contain(fieldName) {
+		return "", errScannerFieldNotFound
+	}
+	return s.scanner.ReadString(fieldName)
+}
+
+func (s *projectScanner) Read(fieldName string) (constant, error) {
+	if !s.Contain(fieldName) {
+		return nil, errScannerFieldNotFound
+	}
+	return s.scanner.Read(fieldName)
+}
+
+func (s *projectScanner) Contain(fieldName string) bool {
+	_, ok := s.fields[fieldName]
+	return ok
 }
