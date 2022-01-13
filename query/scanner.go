@@ -27,7 +27,12 @@ type updateScanner interface {
 	Delete() error
 }
 
-var _ updateScanner = &tableScanner{}
+var (
+	_ updateScanner = &tableScanner{}
+	_ updateScanner = &selectScanner{}
+)
+
+var scannerNotUpdetable = fmt.Errorf("a scanner is not a updatable")
 
 type tableScanner struct {
 	*table.TableScanner
@@ -75,4 +80,77 @@ func (s *tableScanner) Read(fieldName string) (constant, error) {
 func (s *tableScanner) Contain(fieldName string) bool {
 	_, ok := s.schema.Field(fieldName)
 	return ok
+}
+
+type selectScanner struct {
+	scanner
+
+	pred *predicate
+}
+
+func newSelectScanner(s scanner, pred *predicate) *selectScanner {
+	return &selectScanner{
+		scanner: s,
+		pred:    pred,
+	}
+}
+
+func (s *selectScanner) Next() (bool, error) {
+	for {
+		ok, err := s.scanner.Next()
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+
+		ok, err = s.pred.isSatisfied(s)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return true, nil
+		}
+	}
+}
+
+func (s *selectScanner) WriteInt64(fieldName string, val int64) error {
+	us, ok := s.scanner.(updateScanner)
+	if !ok {
+		return scannerNotUpdetable
+	}
+	return us.WriteInt64(fieldName, val)
+}
+
+func (s *selectScanner) WriteUint64(fieldName string, val uint64) error {
+	us, ok := s.scanner.(updateScanner)
+	if !ok {
+		return scannerNotUpdetable
+	}
+	return us.WriteUint64(fieldName, val)
+}
+
+func (s *selectScanner) WriteString(fieldName string, val string) error {
+	us, ok := s.scanner.(updateScanner)
+	if !ok {
+		return scannerNotUpdetable
+	}
+	return us.WriteString(fieldName, val)
+}
+
+func (s *selectScanner) Insert() error {
+	us, ok := s.scanner.(updateScanner)
+	if !ok {
+		return scannerNotUpdetable
+	}
+	return us.Insert()
+}
+
+func (s *selectScanner) Delete() error {
+	us, ok := s.scanner.(updateScanner)
+	if !ok {
+		return scannerNotUpdetable
+	}
+	return us.Delete()
 }
