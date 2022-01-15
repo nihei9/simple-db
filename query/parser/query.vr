@@ -1,0 +1,39 @@
+query
+	: select_statement
+	;
+select_statement
+	: 'select' field_list 'from' table_list #ast #(select_statement $2 $4)
+	| 'select' field_list 'from' table_list 'where' predicate #ast #(select_statement $2 $4 $6)
+	;
+field_list
+	: field
+	| field_list ',' field #ast #(field_list $1... $3)
+	;
+table_list
+	: id
+	| table_list ',' id #ast #(table_list $1... $3)
+	;
+predicate
+	: term
+	| predicate 'and' term #ast #(predicate $1... $3)
+	;
+term
+	: expression '=' expression #ast #(term $1 $3)
+	;
+expression
+	: field
+	| constant
+	;
+constant
+	: string
+	| integer
+	;
+field
+	: id
+	;
+
+white_spaces: "[\u{0009}\u{0020}]+" #skip;
+newlines: "[\u{000A}\u{000D}]+" #skip;
+id: "[A-Za-z_][0-9A-Za-z_]*";
+string: "'[^']*'";
+integer: "[0-9]+";
