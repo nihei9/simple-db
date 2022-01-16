@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nihei9/simple-db/storage"
@@ -17,14 +18,14 @@ func TestMetadataManager_tableManager(t *testing.T) {
 	defer os.RemoveAll(testDir)
 
 	var logFileName string
-	var dbFileName string
+	var tmpDBName string
 	{
 		logFilePath, dbFilePath, err := makeTestLogFileAndDBFile(testDir)
 		if err != nil {
 			t.Fatal(err)
 		}
 		logFileName = filepath.Base(logFilePath)
-		dbFileName = filepath.Base(dbFilePath)
+		tmpDBName = strings.TrimSuffix(filepath.Base(dbFilePath), ".tbl")
 	}
 
 	st, err := storage.InitStorage(context.Background(), &storage.StorageConfig{
@@ -52,16 +53,121 @@ func TestMetadataManager_tableManager(t *testing.T) {
 	sc.Add("B", NewUint64Field())
 	sc.Add("C", NewStringField(32))
 
-	err = mm.CreateTable(tx, dbFileName, sc)
+	err = mm.CreateTable(tx, tmpDBName, sc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	la, err := mm.FindLayout(tx, dbFileName)
+	la, err := mm.FindLayout(tx, tmpDBName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if la == nil {
 		t.Fatal("findLayout method must return a non-nil value")
+	}
+}
+
+func TestMetadataManager_statisticManager(t *testing.T) {
+	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(testDir)
+
+	var logFileName string
+	var tmpDBName string
+	{
+		logFilePath, dbFilePath, err := makeTestLogFileAndDBFile(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logFileName = filepath.Base(logFilePath)
+		tmpDBName = strings.TrimSuffix(filepath.Base(dbFilePath), ".tbl")
+	}
+
+	st, err := storage.InitStorage(context.Background(), &storage.StorageConfig{
+		DirPath:     testDir,
+		LogFileName: logFileName,
+		BlkSize:     1000,
+		BufSize:     10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := st.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mm, err := NewMetadataManager(true, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sc := NewShcema()
+	sc.Add("A", NewInt64Field())
+	sc.Add("B", NewUint64Field())
+	sc.Add("C", NewStringField(32))
+
+	err = mm.CreateTable(tx, tmpDBName, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err = st.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stat, err := mm.TableStatistic(tx, tmpDBName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stat.BlockCount != 0 {
+		t.Fatalf("BlockCount must be 0")
+	}
+	if stat.RecordCount != 0 {
+		t.Fatalf("RecordCount must be 0")
+	}
+
+	ts, err := NewTableScanner(tx, tmpDBName, NewLayout(sc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ts.BeforeFirst()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ts.Insert()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err = st.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stat, err = mm.TableStatistic(tx, tmpDBName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stat.BlockCount <= 0 {
+		t.Fatalf("BlockCount must be >0")
+	}
+	if stat.RecordCount <= 0 {
+		t.Fatalf("RecordCount must be >0")
 	}
 }

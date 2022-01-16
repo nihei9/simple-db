@@ -76,7 +76,7 @@ func (s *Schema) Field(name string) (*Field, bool) {
 }
 
 type Layout struct {
-	schema   *Schema
+	Schema   *Schema
 	offsets  map[string]int
 	slotSize int
 }
@@ -100,7 +100,7 @@ func NewLayout(schema *Schema) *Layout {
 	slotSize := pos
 
 	return &Layout{
-		schema:   schema,
+		Schema:   schema,
 		offsets:  offsets,
 		slotSize: slotSize,
 	}
@@ -213,7 +213,7 @@ func (p *recordPage) formatSlot(slot slotNum) error {
 	if err != nil {
 		return err
 	}
-	for _, f := range p.layout.schema.fields {
+	for _, f := range p.layout.Schema.fields {
 		offset, err := p.offset(slot, f.name)
 		if err != nil {
 			return err

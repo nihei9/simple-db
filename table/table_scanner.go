@@ -7,6 +7,11 @@ import (
 	"github.com/nihei9/simple-db/storage"
 )
 
+type RecordID struct {
+	blkNum  int
+	slotNum slotNum
+}
+
 type TableScanner struct {
 	tx            *storage.Transaction
 	tableFileName string
@@ -131,12 +136,23 @@ func (s *TableScanner) Delete() error {
 }
 
 func (s *TableScanner) contain(fieldName string) bool {
-	for _, f := range s.layout.schema.fields {
+	for _, f := range s.layout.Schema.fields {
 		if f.name == fieldName {
 			return true
 		}
 	}
 	return false
+}
+
+func (s *TableScanner) RecordID() (*RecordID, bool) {
+	if s.currentSlot < 0 {
+		return nil, false
+	}
+
+	return &RecordID{
+		blkNum:  s.recPage.blk.BlkNum,
+		slotNum: s.currentSlot,
+	}, true
 }
 
 func (s *TableScanner) moveToBlock(blkNum int) error {

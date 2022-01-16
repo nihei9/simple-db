@@ -2,12 +2,14 @@ package table
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/nihei9/simple-db/storage"
 )
 
 type MetadataManager struct {
 	tm *tableManager
+	sm *statisticManager
 }
 
 func NewMetadataManager(isNew bool, tx *storage.Transaction) (*MetadataManager, error) {
@@ -16,8 +18,14 @@ func NewMetadataManager(isNew bool, tx *storage.Transaction) (*MetadataManager, 
 		return nil, err
 	}
 
+	sm := newStatisticManager(tx, tm)
+	if err != nil {
+		return nil, err
+	}
+
 	return &MetadataManager{
 		tm: tm,
+		sm: sm,
 	}, nil
 }
 
@@ -27,6 +35,10 @@ func (m *MetadataManager) CreateTable(tx *storage.Transaction, tabName string, s
 
 func (m *MetadataManager) FindLayout(tx *storage.Transaction, tabName string) (*Layout, error) {
 	return m.tm.findLayout(tx, tabName)
+}
+
+func (m *MetadataManager) TableStatistic(tx *storage.Transaction, tableName string) (*TableStat, error) {
+	return m.sm.tableStat(tx, tableName)
 }
 
 type tableManager struct {
@@ -213,8 +225,122 @@ func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*Lay
 	}
 
 	return &Layout{
-		schema:   sc,
+		Schema:   sc,
 		offsets:  offsets,
 		slotSize: slotSize,
+	}, nil
+}
+
+type TableStat struct {
+	BlockCount         int
+	RecordCount        int
+	DistinctValueCount int
+}
+
+type statisticManager struct {
+	tm        *tableManager
+	mu        sync.Mutex
+	stats     map[string]*TableStat
+	callCount int
+}
+
+func newStatisticManager(tx *storage.Transaction, tm *tableManager) *statisticManager {
+	return &statisticManager{
+		tm:        tm,
+		callCount: 0,
+	}
+}
+
+func (m *statisticManager) tableStat(tx *storage.Transaction, tableName string) (*TableStat, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.callCount++
+	if m.callCount > 100 {
+		err := m.refreshStatistics(tx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	stat, ok := m.stats[tableName]
+	if !ok {
+		la, err := m.tm.findLayout(tx, tableName)
+		if err != nil {
+			return nil, err
+		}
+		stat, err = m.calcTableStat(tx, tableName, la)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return stat, nil
+}
+
+func (m *statisticManager) refreshStatistics(tx *storage.Transaction) error {
+	tabCatLayout, err := m.tm.findLayout(tx, "table_catalog")
+	if err != nil {
+		return err
+	}
+	tabCat, err := NewTableScanner(tx, "table_catalog", tabCatLayout)
+	if err != nil {
+		return err
+	}
+	defer tabCat.Close()
+	stats := map[string]*TableStat{}
+	for {
+		ok, err := tabCat.Next()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+
+		tabName, err := tabCat.ReadString("table_name")
+		if err != nil {
+			return err
+		}
+		la, err := m.tm.findLayout(tx, tabName)
+		if err != nil {
+			break
+		}
+		stat, err := m.calcTableStat(tx, tabName, la)
+		if err != nil {
+			return err
+		}
+		stats[tabName] = stat
+	}
+	m.stats = stats
+	m.callCount = 0
+	return nil
+}
+
+func (m *statisticManager) calcTableStat(tx *storage.Transaction, tableName string, layout *Layout) (*TableStat, error) {
+	blkCount := 0
+	recCount := 0
+	tab, err := NewTableScanner(tx, tableName, layout)
+	if err != nil {
+		return nil, err
+	}
+	defer tab.Close()
+	for {
+		ok, err := tab.Next()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+		recCount++
+		rid, ok := tab.RecordID()
+		if !ok {
+			return nil, fmt.Errorf("failed to get a record id")
+		}
+		blkCount = rid.blkNum + 1
+	}
+	return &TableStat{
+		BlockCount:         blkCount,
+		RecordCount:        recCount,
+		DistinctValueCount: 1 + (recCount / 3), // FIXME
 	}, nil
 }

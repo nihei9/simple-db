@@ -139,6 +139,14 @@ func TestTableScanner(t *testing.T) {
 			t.Fatal("a record was not found")
 		}
 
+		rid, ok := ts.RecordID()
+		if !ok {
+			t.Fatal("RecordID must return `true`")
+		}
+		if rid.blkNum < 0 || rid.slotNum < 0 {
+			t.Fatalf("invalid record id: %#v", rid)
+		}
+
 		a, err := ts.ReadInt64("A")
 		if err != nil {
 			t.Fatal(err)

@@ -141,41 +141,67 @@ func (e *fieldNameExpression) Evaluate(s Scanner) (Constant, error) {
 }
 
 type Term struct {
-	lhs Expression
-	rhs Expression
+	LHS Expression
+	RHS Expression
 }
 
 func NewTerm(lhs, rhs Expression) *Term {
 	return &Term{
-		lhs: lhs,
-		rhs: rhs,
+		LHS: lhs,
+		RHS: rhs,
 	}
 }
 
 func (t *Term) isSatisfied(s Scanner) (bool, error) {
-	l, err := t.lhs.Evaluate(s)
+	l, err := t.LHS.Evaluate(s)
 	if err != nil {
 		return false, err
 	}
-	r, err := t.rhs.Evaluate(s)
+	r, err := t.RHS.Evaluate(s)
 	if err != nil {
 		return false, err
 	}
 	return l.Equal(r), nil
 }
 
+func (t *Term) equateWithConstant(fieldName string) Constant {
+	lf, isLHSFieldName := t.LHS.AsFieldName()
+	rc, isRHSConstant := t.RHS.AsConstant()
+	if isLHSFieldName && lf == fieldName && isRHSConstant {
+		return rc
+	}
+	lc, isLHSConstant := t.LHS.AsConstant()
+	rf, isRHSFieldName := t.RHS.AsFieldName()
+	if isRHSFieldName && rf == fieldName && isLHSConstant {
+		return lc
+	}
+	return nil
+}
+
+func (t *Term) equateWithField(fieldName string) string {
+	lf, isLHSFieldName := t.LHS.AsFieldName()
+	rf, isRHSFieldName := t.RHS.AsFieldName()
+	if isLHSFieldName && lf == fieldName && isRHSFieldName {
+		return rf
+	}
+	if isRHSFieldName && rf == fieldName && isLHSFieldName {
+		return lf
+	}
+	return ""
+}
+
 type Predicate struct {
-	terms []*Term
+	Terms []*Term
 }
 
 func NewPredicate(t *Term) *Predicate {
 	return &Predicate{
-		terms: []*Term{t},
+		Terms: []*Term{t},
 	}
 }
 
 func (p *Predicate) isSatisfied(s Scanner) (bool, error) {
-	for _, t := range p.terms {
+	for _, t := range p.Terms {
 		ok, err := t.isSatisfied(s)
 		if err != nil {
 			return false, err
@@ -185,4 +211,24 @@ func (p *Predicate) isSatisfied(s Scanner) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func (p *Predicate) EquateWithConstant(fieldName string) Constant {
+	for _, t := range p.Terms {
+		c := t.equateWithConstant(fieldName)
+		if c != nil {
+			return c
+		}
+	}
+	return nil
+}
+
+func (p *Predicate) EquateWithField(fieldName string) string {
+	for _, t := range p.Terms {
+		f := t.equateWithField(fieldName)
+		if f != "" {
+			return f
+		}
+	}
+	return ""
 }
