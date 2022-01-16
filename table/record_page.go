@@ -66,6 +66,12 @@ func (s *Schema) Add(name string, f *Field) {
 	s.fields = append(s.fields, newNamedField(name, f))
 }
 
+func (s *Schema) AddSchema(sc *Schema) {
+	for _, f := range sc.fields {
+		s.Add(f.name, f.Field)
+	}
+}
+
 func (s *Schema) Field(name string) (*Field, bool) {
 	for _, f := range s.fields {
 		if f.name == name {
@@ -73,6 +79,14 @@ func (s *Schema) Field(name string) (*Field, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (s *Schema) FieldNames() []string {
+	names := make([]string, 0, len(s.fields))
+	for _, f := range s.fields {
+		names = append(names, f.name)
+	}
+	return names
 }
 
 type Layout struct {

@@ -1,6 +1,8 @@
 package planner
 
 import (
+	"fmt"
+
 	"github.com/nihei9/simple-db/query/scanner"
 	"github.com/nihei9/simple-db/storage"
 	"github.com/nihei9/simple-db/table"
@@ -150,4 +152,99 @@ func reductionFactor(pred *scanner.Predicate, plan Plan) int {
 		factor *= f
 	}
 	return factor
+}
+
+type projectPlan struct {
+	plan   Plan
+	schema *table.Schema
+}
+
+func NewProjectPlan(plan Plan, fields []string) (*projectPlan, error) {
+	sc := table.NewShcema()
+	psc := plan.Schema()
+	for _, name := range fields {
+		f, ok := psc.Field(name)
+		if !ok {
+			return nil, fmt.Errorf("a field was not found: %v", name)
+		}
+		sc.Add(name, f)
+	}
+
+	return &projectPlan{
+		plan:   plan,
+		schema: sc,
+	}, nil
+}
+
+func (p *projectPlan) Open() (scanner.Scanner, error) {
+	s, err := p.plan.Open()
+	if err != nil {
+		return nil, err
+	}
+	return scanner.NewProjectScanner(s, p.schema.FieldNames()), nil
+}
+
+func (p *projectPlan) BlockCount() int {
+	return p.plan.BlockCount()
+}
+
+func (p *projectPlan) RecordCount() int {
+	return p.plan.RecordCount()
+}
+
+func (p *projectPlan) DistinctValueCount(fieldName string) int {
+	return p.plan.DistinctValueCount(fieldName)
+}
+
+func (p *projectPlan) Schema() *table.Schema {
+	return p.schema
+}
+
+type productPlan struct {
+	plan1  Plan
+	plan2  Plan
+	schema *table.Schema
+}
+
+func NewProductPlan(plan1, plan2 Plan) (*productPlan, error) {
+	sc := table.NewShcema()
+	sc.AddSchema(plan1.Schema())
+	sc.AddSchema(plan2.Schema())
+
+	return &productPlan{
+		plan1:  plan1,
+		plan2:  plan2,
+		schema: sc,
+	}, nil
+}
+
+func (p *productPlan) Open() (scanner.Scanner, error) {
+	s1, err := p.plan1.Open()
+	if err != nil {
+		return nil, err
+	}
+	s2, err := p.plan2.Open()
+	if err != nil {
+		return nil, err
+	}
+	return scanner.NewProductScanner(s1, s2), nil
+}
+
+func (p *productPlan) BlockCount() int {
+	return p.plan1.BlockCount() + (p.plan1.RecordCount() * p.plan2.BlockCount())
+}
+
+func (p *productPlan) RecordCount() int {
+	return p.plan1.RecordCount() * p.plan2.RecordCount()
+}
+
+func (p *productPlan) DistinctValueCount(fieldName string) int {
+	if _, ok := p.plan1.Schema().Field(fieldName); ok {
+		return p.plan1.DistinctValueCount(fieldName)
+	}
+	return p.plan2.DistinctValueCount(fieldName)
+}
+
+func (p *productPlan) Schema() *table.Schema {
+	return p.schema
 }
