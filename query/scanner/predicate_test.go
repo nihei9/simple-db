@@ -1,4 +1,4 @@
-package query
+package scanner
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 )
 
 func TestInt64Constant(t *testing.T) {
-	c := newInt64Constant(-999)
+	c := NewInt64Constant(-999)
 
-	v, ok := c.asInt64()
+	v, ok := c.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -22,21 +22,21 @@ func TestInt64Constant(t *testing.T) {
 		t.Fatalf("unexpected value: want: %v, got: %v", -999, v)
 	}
 
-	_, ok = c.asUint64()
+	_, ok = c.AsUint64()
 	if ok {
 		t.Fatal("asUint64 must return `false`")
 	}
 
-	_, ok = c.asString()
+	_, ok = c.AsString()
 	if ok {
 		t.Fatal("asString must return `false`")
 	}
 }
 
 func TestUint64Constant(t *testing.T) {
-	c := newUint64Constant(2022)
+	c := NewUint64Constant(2022)
 
-	v, ok := c.asUint64()
+	v, ok := c.AsUint64()
 	if !ok {
 		t.Fatal("asUint64 must return `true`")
 	}
@@ -44,21 +44,21 @@ func TestUint64Constant(t *testing.T) {
 		t.Fatalf("unexpected value: want: %v, got: %v", 2022, v)
 	}
 
-	_, ok = c.asInt64()
+	_, ok = c.AsInt64()
 	if ok {
 		t.Fatal("asInt64 must return `false`")
 	}
 
-	_, ok = c.asString()
+	_, ok = c.AsString()
 	if ok {
 		t.Fatal("asString must return `false`")
 	}
 }
 
 func TestStringConstant(t *testing.T) {
-	c := newStringConstant("Hello")
+	c := NewStringConstant("Hello")
 
-	v, ok := c.asString()
+	v, ok := c.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -66,38 +66,38 @@ func TestStringConstant(t *testing.T) {
 		t.Fatalf("unexpected value: want: %#v, got: %#v", "Hello", v)
 	}
 
-	_, ok = c.asInt64()
+	_, ok = c.AsInt64()
 	if ok {
 		t.Fatal("asInt64 must return `false`")
 	}
 
-	_, ok = c.asUint64()
+	_, ok = c.AsUint64()
 	if ok {
 		t.Fatal("asUint64 must return `false`")
 	}
 }
 
 func TestConstantExpression(t *testing.T) {
-	e := newConstantExpression(newStringConstant("Hello"))
+	e := NewConstantExpression(NewStringConstant("Hello"))
 
-	v, ok := e.asConstant()
+	v, ok := e.AsConstant()
 	if !ok {
 		t.Fatal("asConstant must return `true`")
 	}
-	if s, ok := v.asString(); !ok || s != "Hello" {
+	if s, ok := v.AsString(); !ok || s != "Hello" {
 		t.Fatalf("unexpected value: want: %#v, got: %#v", "Hello", s)
 	}
 
-	_, ok = e.asFieldName()
+	_, ok = e.AsFieldName()
 	if ok {
 		t.Fatal("asFieldName must return `false`")
 	}
 }
 
 func TestFieldNameExpression(t *testing.T) {
-	e := newFieldNameExpression("Fox")
+	e := NewFieldNameExpression("Fox")
 
-	v, ok := e.asFieldName()
+	v, ok := e.AsFieldName()
 	if !ok {
 		t.Fatal("asFieldName must return `true`")
 	}
@@ -105,7 +105,7 @@ func TestFieldNameExpression(t *testing.T) {
 		t.Fatalf("unexpected value: want: %#v, got: %#v", "Fox", v)
 	}
 
-	_, ok = e.asConstant()
+	_, ok = e.AsConstant()
 	if ok {
 		t.Fatal("asConstant must return `false`")
 	}
@@ -179,18 +179,18 @@ func TestPredicate(t *testing.T) {
 		}
 	}
 
-	var ts scanner
+	var ts Scanner
 	{
 		s, err := table.NewTableScanner(tx, tmpTableName, la)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts = newTableScanner(s, sc)
+		ts = NewTableScanner(s, sc)
 	}
 
-	pred := newPredicate(newTerm(
-		newFieldNameExpression("name"),
-		newConstantExpression(newStringConstant("John Doggett")),
+	pred := NewPredicate(NewTerm(
+		NewFieldNameExpression("name"),
+		NewConstantExpression(NewStringConstant("John Doggett")),
 	))
 
 	err = ts.BeforeFirst()

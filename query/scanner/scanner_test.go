@@ -1,4 +1,4 @@
-package query
+package scanner
 
 import (
 	"context"
@@ -90,13 +90,13 @@ func TestTableScanner(t *testing.T) {
 		}
 	}
 
-	var ts scanner
+	var ts Scanner
 	{
 		s, err := table.NewTableScanner(tx, tmpTableName, la)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts = newTableScanner(s, sc)
+		ts = NewTableScanner(s, sc)
 	}
 
 	if !ts.Contain("A") {
@@ -128,7 +128,7 @@ func TestTableScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valA, ok := constA.asInt64()
+	valA, ok := constA.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -147,7 +147,7 @@ func TestTableScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valB, ok := constB.asUint64()
+	valB, ok := constB.AsUint64()
 	if !ok {
 		t.Fatal("asUint64 must return `true`")
 	}
@@ -166,7 +166,7 @@ func TestTableScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valC, ok := constC.asString()
+	valC, ok := constC.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -252,19 +252,19 @@ func TestSelectScanner(t *testing.T) {
 		}
 	}
 
-	var ss scanner
+	var ss Scanner
 	{
 		s, err := table.NewTableScanner(tx, tmpTableName, la)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts := newTableScanner(s, sc)
+		ts := NewTableScanner(s, sc)
 
-		pred := newPredicate(newTerm(
-			newFieldNameExpression("name"),
-			newConstantExpression(newStringConstant("Melvin Frohike")),
+		pred := NewPredicate(NewTerm(
+			NewFieldNameExpression("name"),
+			NewConstantExpression(NewStringConstant("Melvin Frohike")),
 		))
-		ss = newSelectScanner(ts, pred)
+		ss = NewSelectScanner(ts, pred)
 	}
 
 	err = ss.BeforeFirst()
@@ -283,7 +283,7 @@ func TestSelectScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok := v.asString()
+	s, ok := v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -390,15 +390,15 @@ func TestProjectScanner(t *testing.T) {
 		}
 	}
 
-	var ps scanner
+	var ps Scanner
 	{
 		s, err := table.NewTableScanner(tx, tmpTableName, la)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts := newTableScanner(s, sc)
+		ts := NewTableScanner(s, sc)
 
-		ps = newProjectScanner(ts, []string{"name"})
+		ps = NewProjectScanner(ts, []string{"name"})
 	}
 
 	err = ps.BeforeFirst()
@@ -424,7 +424,7 @@ func TestProjectScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok := v.asString()
+	s, ok := v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -450,7 +450,7 @@ func TestProjectScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -476,7 +476,7 @@ func TestProjectScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -593,7 +593,7 @@ func TestProductScanner(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts1 = newTableScanner(s, sc)
+		ts1 = NewTableScanner(s, sc)
 	}
 
 	var ts2 *tableScanner
@@ -651,10 +651,10 @@ func TestProductScanner(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ts2 = newTableScanner(s, sc)
+		ts2 = NewTableScanner(s, sc)
 	}
 
-	ps := newProductScanner(ts1, ts2)
+	ps := NewProductScanner(ts1, ts2)
 
 	err = ps.BeforeFirst()
 	if err != nil {
@@ -672,7 +672,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok := v.asInt64()
+	i, ok := v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -683,7 +683,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok := v.asString()
+	s, ok := v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -694,7 +694,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -705,7 +705,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -724,7 +724,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -735,7 +735,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -746,7 +746,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -757,7 +757,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -776,7 +776,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -787,7 +787,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -798,7 +798,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -809,7 +809,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -828,7 +828,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -839,7 +839,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}
@@ -850,7 +850,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i, ok = v.asInt64()
+	i, ok = v.AsInt64()
 	if !ok {
 		t.Fatal("asInt64 must return `true`")
 	}
@@ -861,7 +861,7 @@ func TestProductScanner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok = v.asString()
+	s, ok = v.AsString()
 	if !ok {
 		t.Fatal("asString must return `true`")
 	}

@@ -1,4 +1,4 @@
-package query
+package scanner
 
 import (
 	"fmt"
@@ -6,24 +6,24 @@ import (
 	"github.com/nihei9/simple-db/table"
 )
 
-type scanner interface {
+type Scanner interface {
 	BeforeFirst() error
 	Next() (bool, error)
 	ReadInt64(fieldName string) (int64, error)
 	ReadUint64(fieldName string) (uint64, error)
 	ReadString(fieldName string) (string, error)
-	Read(fieldName string) (constant, error)
+	Read(fieldName string) (Constant, error)
 	Contain(fieldName string) bool
 	Close() error
 }
 
 var (
-	_ scanner = &projectScanner{}
-	_ scanner = &productScanner{}
+	_ Scanner = &projectScanner{}
+	_ Scanner = &productScanner{}
 )
 
-type updateScanner interface {
-	scanner
+type UpdateScanner interface {
+	Scanner
 
 	WriteInt64(fieldName string, val int64) error
 	WriteUint64(fieldName string, val uint64) error
@@ -33,8 +33,8 @@ type updateScanner interface {
 }
 
 var (
-	_ updateScanner = &tableScanner{}
-	_ updateScanner = &selectScanner{}
+	_ UpdateScanner = &tableScanner{}
+	_ UpdateScanner = &selectScanner{}
 )
 
 var (
@@ -48,14 +48,14 @@ type tableScanner struct {
 	schema *table.Schema
 }
 
-func newTableScanner(ts *table.TableScanner, sc *table.Schema) *tableScanner {
+func NewTableScanner(ts *table.TableScanner, sc *table.Schema) *tableScanner {
 	return &tableScanner{
 		TableScanner: ts,
 		schema:       sc,
 	}
 }
 
-func (s *tableScanner) Read(fieldName string) (constant, error) {
+func (s *tableScanner) Read(fieldName string) (Constant, error) {
 	f, ok := s.schema.Field(fieldName)
 	if !ok {
 		return nil, fmt.Errorf("invalid field name: %v", fieldName)
@@ -67,19 +67,19 @@ func (s *tableScanner) Read(fieldName string) (constant, error) {
 		if err != nil {
 			return nil, err
 		}
-		return newInt64Constant(v), nil
+		return NewInt64Constant(v), nil
 	case table.FieldTypeUint64:
 		v, err := s.ReadUint64(fieldName)
 		if err != nil {
 			return nil, err
 		}
-		return newUint64Constant(v), nil
+		return NewUint64Constant(v), nil
 	case table.FieldTypeString:
 		v, err := s.ReadString(fieldName)
 		if err != nil {
 			return nil, err
 		}
-		return newStringConstant(v), nil
+		return NewStringConstant(v), nil
 	default:
 		return nil, fmt.Errorf("invalid field type: %v", f.Ty)
 	}
@@ -91,21 +91,21 @@ func (s *tableScanner) Contain(fieldName string) bool {
 }
 
 type selectScanner struct {
-	scanner
+	Scanner
 
-	pred *predicate
+	pred *Predicate
 }
 
-func newSelectScanner(s scanner, pred *predicate) *selectScanner {
+func NewSelectScanner(s Scanner, pred *Predicate) *selectScanner {
 	return &selectScanner{
-		scanner: s,
+		Scanner: s,
 		pred:    pred,
 	}
 }
 
 func (s *selectScanner) Next() (bool, error) {
 	for {
-		ok, err := s.scanner.Next()
+		ok, err := s.Scanner.Next()
 		if err != nil {
 			return false, err
 		}
@@ -124,7 +124,7 @@ func (s *selectScanner) Next() (bool, error) {
 }
 
 func (s *selectScanner) WriteInt64(fieldName string, val int64) error {
-	us, ok := s.scanner.(updateScanner)
+	us, ok := s.Scanner.(UpdateScanner)
 	if !ok {
 		return errScannerNotUpdetable
 	}
@@ -132,7 +132,7 @@ func (s *selectScanner) WriteInt64(fieldName string, val int64) error {
 }
 
 func (s *selectScanner) WriteUint64(fieldName string, val uint64) error {
-	us, ok := s.scanner.(updateScanner)
+	us, ok := s.Scanner.(UpdateScanner)
 	if !ok {
 		return errScannerNotUpdetable
 	}
@@ -140,7 +140,7 @@ func (s *selectScanner) WriteUint64(fieldName string, val uint64) error {
 }
 
 func (s *selectScanner) WriteString(fieldName string, val string) error {
-	us, ok := s.scanner.(updateScanner)
+	us, ok := s.Scanner.(UpdateScanner)
 	if !ok {
 		return errScannerNotUpdetable
 	}
@@ -148,7 +148,7 @@ func (s *selectScanner) WriteString(fieldName string, val string) error {
 }
 
 func (s *selectScanner) Insert() error {
-	us, ok := s.scanner.(updateScanner)
+	us, ok := s.Scanner.(UpdateScanner)
 	if !ok {
 		return errScannerNotUpdetable
 	}
@@ -156,7 +156,7 @@ func (s *selectScanner) Insert() error {
 }
 
 func (s *selectScanner) Delete() error {
-	us, ok := s.scanner.(updateScanner)
+	us, ok := s.Scanner.(UpdateScanner)
 	if !ok {
 		return errScannerNotUpdetable
 	}
@@ -164,19 +164,19 @@ func (s *selectScanner) Delete() error {
 }
 
 type projectScanner struct {
-	scanner
+	Scanner
 
 	fields map[string]struct{}
 }
 
-func newProjectScanner(s scanner, fields []string) *projectScanner {
+func NewProjectScanner(s Scanner, fields []string) *projectScanner {
 	fs := map[string]struct{}{}
 	for _, f := range fields {
 		fs[f] = struct{}{}
 	}
 
 	return &projectScanner{
-		scanner: s,
+		Scanner: s,
 		fields:  fs,
 	}
 }
@@ -185,28 +185,28 @@ func (s *projectScanner) ReadInt64(fieldName string) (int64, error) {
 	if !s.Contain(fieldName) {
 		return 0, errScannerFieldNotFound
 	}
-	return s.scanner.ReadInt64(fieldName)
+	return s.Scanner.ReadInt64(fieldName)
 }
 
 func (s *projectScanner) ReadUint64(fieldName string) (uint64, error) {
 	if !s.Contain(fieldName) {
 		return 0, errScannerFieldNotFound
 	}
-	return s.scanner.ReadUint64(fieldName)
+	return s.Scanner.ReadUint64(fieldName)
 }
 
 func (s *projectScanner) ReadString(fieldName string) (string, error) {
 	if !s.Contain(fieldName) {
 		return "", errScannerFieldNotFound
 	}
-	return s.scanner.ReadString(fieldName)
+	return s.Scanner.ReadString(fieldName)
 }
 
-func (s *projectScanner) Read(fieldName string) (constant, error) {
+func (s *projectScanner) Read(fieldName string) (Constant, error) {
 	if !s.Contain(fieldName) {
 		return nil, errScannerFieldNotFound
 	}
-	return s.scanner.Read(fieldName)
+	return s.Scanner.Read(fieldName)
 }
 
 func (s *projectScanner) Contain(fieldName string) bool {
@@ -215,11 +215,11 @@ func (s *projectScanner) Contain(fieldName string) bool {
 }
 
 type productScanner struct {
-	s1 scanner
-	s2 scanner
+	s1 Scanner
+	s2 Scanner
 }
 
-func newProductScanner(s1, s2 scanner) *productScanner {
+func NewProductScanner(s1, s2 Scanner) *productScanner {
 	return &productScanner{
 		s1: s1,
 		s2: s2,
@@ -293,7 +293,7 @@ func (s *productScanner) ReadString(fieldName string) (string, error) {
 	return s.s2.ReadString(fieldName)
 }
 
-func (s *productScanner) Read(fieldName string) (constant, error) {
+func (s *productScanner) Read(fieldName string) (Constant, error) {
 	if s.s1.Contain(fieldName) {
 		return s.s1.Read(fieldName)
 	}
