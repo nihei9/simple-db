@@ -195,9 +195,20 @@ type Predicate struct {
 }
 
 func NewPredicate(t *Term) *Predicate {
-	return &Predicate{
-		Terms: []*Term{t},
+	terms := []*Term{}
+	if t != nil {
+		terms = append(terms, t)
 	}
+	return &Predicate{
+		Terms: terms,
+	}
+}
+
+func (p *Predicate) AppendTerm(t *Term) {
+	if t == nil {
+		return
+	}
+	p.Terms = append(p.Terms, t)
 }
 
 func (p *Predicate) isSatisfied(s Scanner) (bool, error) {

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nihei9/simple-db/query/scanner"
 	"github.com/nihei9/vartan/driver"
 	"github.com/nihei9/vartan/spec"
 )
@@ -26,25 +27,10 @@ func init() {
 	grammar = &g
 }
 
-type Constant struct {
-	ValInt    *int
-	ValString *string
-}
-
-type Expression struct {
-	Field    string
-	Constant *Constant
-}
-
-type Term struct {
-	LHS *Expression
-	RHS *Expression
-}
-
 type Query struct {
 	Fields    []string
 	Tables    []string
-	Predicate []*Term
+	Predicate *scanner.Predicate
 }
 
 func Parse(src io.Reader) (*Query, error) {
@@ -85,6 +71,7 @@ func astToQuery(root *driver.Node) (*Query, error) {
 	}
 	if len(selectStmt.Children) >= 3 {
 		predicate := selectStmt.Children[2]
+		q.Predicate = scanner.NewPredicate(nil)
 		for _, term := range predicate.Children {
 			lExp, err := astToExpression(term.Children[0])
 			if err != nil {
@@ -94,39 +81,26 @@ func astToQuery(root *driver.Node) (*Query, error) {
 			if err != nil {
 				return nil, err
 			}
-			q.Predicate = append(q.Predicate, &Term{
-				LHS: lExp,
-				RHS: rExp,
-			})
+			q.Predicate.AppendTerm(scanner.NewTerm(lExp, rExp))
 		}
 	}
 	return q, nil
 }
 
-func astToExpression(ast *driver.Node) (*Expression, error) {
+func astToExpression(ast *driver.Node) (scanner.Expression, error) {
 	switch ast.Children[0].KindName {
 	case "field":
-		return &Expression{
-			Field: ast.Children[0].Children[0].Text,
-		}, nil
+		return scanner.NewFieldNameExpression(ast.Children[0].Children[0].Text), nil
 	case "constant":
 		switch ast.Children[0].Children[0].KindName {
 		case "string":
-			return &Expression{
-				Constant: &Constant{
-					ValString: &ast.Children[0].Children[0].Text,
-				},
-			}, nil
+			return scanner.NewConstantExpression(scanner.NewStringConstant(ast.Children[0].Children[0].Text)), nil
 		case "integer":
 			v, err := strconv.Atoi(ast.Children[0].Children[0].Text)
 			if err != nil {
 				return nil, err
 			}
-			return &Expression{
-				Constant: &Constant{
-					ValInt: &v,
-				},
-			}, nil
+			return scanner.NewConstantExpression(scanner.NewInt64Constant(int64(v))), nil
 		default:
 			return nil, fmt.Errorf("invalid constant type")
 		}
