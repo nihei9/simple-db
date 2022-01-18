@@ -11,7 +11,7 @@ import (
 )
 
 func TestMetadataManager_tableManager(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestMetadataManager_tableManager(t *testing.T) {
 }
 
 func TestMetadataManager_statisticManager(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestLogManager(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}

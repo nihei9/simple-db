@@ -11,7 +11,7 @@ import (
 )
 
 func TestTransaction_commit(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestTransaction_commit(t *testing.T) {
 
 	var dbFileName string
 	{
-		dbFilePath, err := makeTestDBFile(testDir)
+		dbFilePath, err := MakeTestTableFile(testDir, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -121,7 +121,7 @@ func TestTransaction_commit(t *testing.T) {
 }
 
 func TestTransaction_rollback(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestTransaction_rollback(t *testing.T) {
 
 	var dbFileName string
 	{
-		dbFilePath, err := makeTestDBFile(testDir)
+		dbFilePath, err := MakeTestTableFile(testDir, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -262,7 +262,7 @@ func TestTransaction_rollback(t *testing.T) {
 }
 
 func TestTransaction_recover(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestTransaction_recover(t *testing.T) {
 
 	var dbFileName string
 	{
-		dbFilePath, err := makeTestDBFile(testDir)
+		dbFilePath, err := MakeTestTableFile(testDir, "")
 		if err != nil {
 			t.Fatal(err)
 		}

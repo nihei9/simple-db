@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestRecordPage(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,21 +156,21 @@ func TestRecordPage(t *testing.T) {
 }
 
 func makeTestLogFileAndDBFile(dir string) (string, string, error) {
-	logFile, err := ioutil.TempFile(dir, "*.log")
+	logFile, err := storage.MakeTestLogFile(dir)
 	if err != nil {
 		return "", "", err
 	}
-	dbFile, err := ioutil.TempFile(dir, "*.tbl")
+	dbFile, err := storage.MakeTestTableFile(dir, "")
 	if err != nil {
 		return "", "", err
 	}
-	_, err = os.Create(filepath.Join(dir, "table_catalog.tbl"))
+	_, err = storage.MakeTestTableFile(dir, "table_catalog")
 	if err != nil {
 		return "", "", err
 	}
-	_, err = os.Create(filepath.Join(dir, "field_catalog.tbl"))
+	_, err = storage.MakeTestTableFile(dir, "field_catalog")
 	if err != nil {
 		return "", "", err
 	}
-	return logFile.Name(), dbFile.Name(), nil
+	return logFile, dbFile, nil
 }

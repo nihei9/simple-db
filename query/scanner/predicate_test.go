@@ -112,7 +112,7 @@ func TestFieldNameExpression(t *testing.T) {
 }
 
 func TestPredicate(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}

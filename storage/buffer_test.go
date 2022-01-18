@@ -10,7 +10,7 @@ import (
 )
 
 func TestBuffer(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestBuffer(t *testing.T) {
 		var dbFilePath string
 		{
 			var err error
-			dbFilePath, err = makeTestDBFile(testDir)
+			dbFilePath, err = MakeTestTableFile(testDir, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -144,7 +144,7 @@ func TestBuffer(t *testing.T) {
 		}
 
 		{
-			dbFilePath, err := makeTestDBFile(testDir)
+			dbFilePath, err := MakeTestTableFile(testDir, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,7 +179,7 @@ func TestBuffer(t *testing.T) {
 }
 
 func TestBufferManager(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestBufferManager(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		dbFilePath, err := makeTestDBFile(testDir)
+		dbFilePath, err := MakeTestTableFile(testDir, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -323,14 +323,6 @@ func newTestFileManagerAndLogManager(dir string, blkSize int) (*fileManager, *lo
 	}
 
 	return fm, lm, nil
-}
-
-func makeTestDBFile(dir string) (string, error) {
-	f, err := ioutil.TempFile(dir, "db_*")
-	if err != nil {
-		return "", err
-	}
-	return f.Name(), nil
 }
 
 func loadOntoPage(filePath string, blkNum int, blkSize int) (*page, error) {

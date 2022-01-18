@@ -446,7 +446,7 @@ func TestPage_string(t *testing.T) {
 }
 
 func TestFileManager(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}

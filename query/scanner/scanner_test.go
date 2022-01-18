@@ -3,7 +3,6 @@ package scanner
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestTableScanner(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +175,7 @@ func TestTableScanner(t *testing.T) {
 }
 
 func TestSelectScanner(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +300,7 @@ func TestSelectScanner(t *testing.T) {
 }
 
 func TestProjectScanner(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,17 +493,17 @@ func TestProjectScanner(t *testing.T) {
 }
 
 func TestProductScanner(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "simple-db-test-*")
+	testDir, err := storage.MakeTestDir()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
 
 	var logFileName string
-	var tmpTable1Name string
-	var tmpTable2Name string
+	tab1Name := "characters"
+	tab2Name := "actors"
 	{
-		logFilePath, err := makeTestLogFile(testDir)
+		logFilePath, err := storage.MakeTestLogFile(testDir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -515,17 +514,15 @@ func TestProductScanner(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		dbFile1Path, err := makeTestDBFile(testDir)
+		_, err = storage.MakeTestTableFile(testDir, tab1Name)
 		if err != nil {
 			t.Fatal(err)
 		}
-		tmpTable1Name = strings.TrimSuffix(filepath.Base(dbFile1Path), ".tbl")
 
-		dbFile2Path, err := makeTestDBFile(testDir)
+		_, err = storage.MakeTestTableFile(testDir, tab2Name)
 		if err != nil {
 			t.Fatal(err)
 		}
-		tmpTable2Name = strings.TrimSuffix(filepath.Base(dbFile2Path), ".tbl")
 	}
 
 	st, err := storage.InitStorage(context.Background(), &storage.StorageConfig{
@@ -553,7 +550,7 @@ func TestProductScanner(t *testing.T) {
 
 		// Write test data
 		{
-			s, err := table.NewTableScanner(tx, tmpTable1Name, la)
+			s, err := table.NewTableScanner(tx, tab1Name, la)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -589,7 +586,7 @@ func TestProductScanner(t *testing.T) {
 			}
 		}
 
-		s, err := table.NewTableScanner(tx, tmpTable1Name, la)
+		s, err := table.NewTableScanner(tx, tab1Name, la)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -611,7 +608,7 @@ func TestProductScanner(t *testing.T) {
 
 		// Write test data
 		{
-			s, err := table.NewTableScanner(tx, tmpTable2Name, la)
+			s, err := table.NewTableScanner(tx, tab2Name, la)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -647,7 +644,7 @@ func TestProductScanner(t *testing.T) {
 			}
 		}
 
-		s, err := table.NewTableScanner(tx, tmpTable2Name, la)
+		s, err := table.NewTableScanner(tx, tab2Name, la)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -879,49 +876,29 @@ func TestProductScanner(t *testing.T) {
 }
 
 func makeTestLogFileAndDBFile(dir string) (string, string, error) {
-	logFile, err := ioutil.TempFile(dir, "*.log")
+	logFile, err := storage.MakeTestLogFile(dir)
 	if err != nil {
 		return "", "", err
 	}
-	_, err = os.Create(filepath.Join(dir, "table_catalog.tbl"))
+	err = makeTestMetaDataDBFiles(dir)
 	if err != nil {
 		return "", "", err
 	}
-	_, err = os.Create(filepath.Join(dir, "field_catalog.tbl"))
+	dbFile, err := storage.MakeTestTableFile(dir, "")
 	if err != nil {
 		return "", "", err
 	}
-	dbFile, err := ioutil.TempFile(dir, "*.tbl")
-	if err != nil {
-		return "", "", err
-	}
-	return logFile.Name(), dbFile.Name(), nil
-}
-
-func makeTestLogFile(dir string) (string, error) {
-	logFile, err := ioutil.TempFile(dir, "*.log")
-	if err != nil {
-		return "", err
-	}
-	return logFile.Name(), nil
+	return logFile, dbFile, nil
 }
 
 func makeTestMetaDataDBFiles(dir string) error {
-	_, err := os.Create(filepath.Join(dir, "table_catalog.tbl"))
+	_, err := storage.MakeTestTableFile(dir, "table_catalog")
 	if err != nil {
 		return err
 	}
-	_, err = os.Create(filepath.Join(dir, "field_catalog.tbl"))
+	_, err = storage.MakeTestTableFile(dir, "field_catalog")
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func makeTestDBFile(dir string) (string, error) {
-	dbFile, err := ioutil.TempFile(dir, "*.tbl")
-	if err != nil {
-		return "", err
-	}
-	return dbFile.Name(), nil
 }
