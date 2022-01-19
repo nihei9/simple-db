@@ -2,6 +2,7 @@ package planner
 
 import (
 	"io"
+	"strings"
 
 	"github.com/nihei9/simple-db/query/parser"
 	"github.com/nihei9/simple-db/storage"
@@ -21,10 +22,25 @@ func NewBasicQueryPlanner(mm *table.MetadataManager) *BasicQueryPlanner {
 func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, query *parser.Query) (Plan, error) {
 	tabPlans := make([]Plan, len(query.Tables))
 	for i, tab := range query.Tables {
-		var err error
-		tabPlans[i], err = NewTablePlan(tx, tab, p.mm)
+		viewDef, err := p.mm.FindViewDef(tx, tab)
 		if err != nil {
 			return nil, err
+		}
+		if viewDef != "" {
+			viewQuery, err := parser.Parse(strings.NewReader(viewDef))
+			if err != nil {
+				return nil, err
+			}
+			tabPlans[i], err = p.createPlan(tx, viewQuery)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			var err error
+			tabPlans[i], err = NewTablePlan(tx, tab, p.mm)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
