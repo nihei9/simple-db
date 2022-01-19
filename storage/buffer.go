@@ -154,7 +154,7 @@ func (m *bufferManager) pin(blk *BlockID) (*buffer, error) {
 	defer m.mu.Unlock()
 
 	w := time.NewTimer(10 * time.Second)
-	t := time.NewTicker(1 * time.Second)
+	t := time.NewTicker(10 * time.Millisecond)
 	defer t.Stop()
 	for {
 		select {
