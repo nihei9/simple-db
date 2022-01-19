@@ -9,11 +9,17 @@ import (
 
 type MetadataManager struct {
 	tm *tableManager
+	vm *viewManager
 	sm *statisticManager
 }
 
 func NewMetadataManager(isNew bool, tx *storage.Transaction) (*MetadataManager, error) {
 	tm, err := newTableManager(isNew, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	vm, err := newViewManager(isNew, tx, tm)
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +31,7 @@ func NewMetadataManager(isNew bool, tx *storage.Transaction) (*MetadataManager, 
 
 	return &MetadataManager{
 		tm: tm,
+		vm: vm,
 		sm: sm,
 	}, nil
 }
@@ -35,6 +42,14 @@ func (m *MetadataManager) CreateTable(tx *storage.Transaction, tabName string, s
 
 func (m *MetadataManager) FindLayout(tx *storage.Transaction, tabName string) (*Layout, error) {
 	return m.tm.findLayout(tx, tabName)
+}
+
+func (m *MetadataManager) CreateView(tx *storage.Transaction, viewName string, viewDef string) error {
+	return m.vm.createView(tx, viewName, viewDef)
+}
+
+func (m *MetadataManager) FindViewDef(tx *storage.Transaction, viewName string) (string, error) {
+	return m.vm.findViewDef(tx, viewName)
 }
 
 func (m *MetadataManager) TableStatistic(tx *storage.Transaction, tableName string) (*TableStat, error) {
@@ -229,6 +244,88 @@ func (m *tableManager) findLayout(tx *storage.Transaction, tabName string) (*Lay
 		offsets:  offsets,
 		slotSize: slotSize,
 	}, nil
+}
+
+type viewManager struct {
+	tm *tableManager
+}
+
+func newViewManager(isNew bool, tx *storage.Transaction, tm *tableManager) (*viewManager, error) {
+	if isNew {
+		sc := NewShcema()
+		sc.Add("view_name", NewStringField(100))
+		sc.Add("view_def", NewStringField(100))
+		err := tm.createTable(tx, "view_catalog", sc)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &viewManager{
+		tm: tm,
+	}, nil
+}
+
+func (m *viewManager) createView(tx *storage.Transaction, viewName string, viewDef string) error {
+	la, err := m.tm.findLayout(tx, "view_catalog")
+	if err != nil {
+		return err
+	}
+	viewCat, err := NewTableScanner(tx, "view_catalog", la)
+	if err != nil {
+		return err
+	}
+	defer viewCat.Close()
+	err = viewCat.BeforeFirst()
+	if err != nil {
+		return err
+	}
+	err = viewCat.Insert()
+	if err != nil {
+		return err
+	}
+	err = viewCat.WriteString("view_name", viewName)
+	if err != nil {
+		return err
+	}
+	err = viewCat.WriteString("view_def", viewDef)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *viewManager) findViewDef(tx *storage.Transaction, viewName string) (string, error) {
+	la, err := m.tm.findLayout(tx, "view_catalog")
+	if err != nil {
+		return "", err
+	}
+	viewCat, err := NewTableScanner(tx, "view_catalog", la)
+	if err != nil {
+		return "", err
+	}
+	defer viewCat.Close()
+	err = viewCat.BeforeFirst()
+	if err != nil {
+		return "", err
+	}
+	for {
+		ok, err := viewCat.Next()
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return "", nil
+		}
+		name, err := viewCat.ReadString("view_name")
+		if err != nil {
+			return "", err
+		}
+		if name != viewName {
+			continue
+		}
+		return viewCat.ReadString("view_def")
+	}
 }
 
 type TableStat struct {

@@ -67,6 +67,57 @@ func TestMetadataManager_tableManager(t *testing.T) {
 	}
 }
 
+func TestMetadataManager_viewManager(t *testing.T) {
+	testDir, err := storage.MakeTestDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(testDir)
+
+	var logFileName string
+	{
+		logFilePath, _, err := makeTestLogFileAndDBFile(testDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logFileName = filepath.Base(logFilePath)
+	}
+
+	st, err := storage.InitStorage(context.Background(), &storage.StorageConfig{
+		DirPath:     testDir,
+		LogFileName: logFileName,
+		BlkSize:     1000,
+		BufSize:     10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := st.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mm, err := NewMetadataManager(true, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	viewDef := "select a, b from foo"
+	err = mm.CreateView(tx, "my_view", viewDef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := mm.FindViewDef(tx, "my_view")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d != viewDef {
+		t.Fatalf("unexpected view def: want: %v, got: %v", viewDef, d)
+	}
+}
+
 func TestMetadataManager_statisticManager(t *testing.T) {
 	testDir, err := storage.MakeTestDir()
 	if err != nil {

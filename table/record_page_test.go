@@ -172,5 +172,9 @@ func makeTestLogFileAndDBFile(dir string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	_, err = storage.MakeTestTableFile(dir, "view_catalog")
+	if err != nil {
+		return "", "", err
+	}
 	return logFile, dbFile, nil
 }
