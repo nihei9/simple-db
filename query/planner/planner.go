@@ -27,7 +27,7 @@ func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, query *parser.Qu
 			return nil, err
 		}
 		if viewDef != "" {
-			viewQuery, err := parser.Parse(strings.NewReader(viewDef))
+			viewQuery, _, err := parser.Parse(strings.NewReader(viewDef))
 			if err != nil {
 				return nil, err
 			}
@@ -69,20 +69,44 @@ func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, query *parser.Qu
 	return NewProjectPlan(selectPlan, query.Fields)
 }
 
-type Planner struct {
-	qp *BasicQueryPlanner
+type BasicUpdatePlanner struct {
+	mm *table.MetadataManager
 }
 
-func NewPlanner(qp *BasicQueryPlanner) *Planner {
+func NewBasicUpdatePlanner(mm *table.MetadataManager) *BasicUpdatePlanner {
+	return &BasicUpdatePlanner{
+		mm: mm,
+	}
+}
+
+func (p *BasicUpdatePlanner) executeCreateTable(tx *storage.Transaction, ct *parser.CreateTable) (int, error) {
+	return 0, p.mm.CreateTable(tx, ct.Table, ct.Schema)
+}
+
+type Planner struct {
+	qp *BasicQueryPlanner
+	up *BasicUpdatePlanner
+}
+
+func NewPlanner(qp *BasicQueryPlanner, up *BasicUpdatePlanner) *Planner {
 	return &Planner{
 		qp: qp,
+		up: up,
 	}
 }
 
 func (p *Planner) CreateQueryPlan(tx *storage.Transaction, cmd io.Reader) (Plan, error) {
-	q, err := parser.Parse(cmd)
+	q, _, err := parser.Parse(cmd)
 	if err != nil {
 		return nil, err
 	}
 	return p.qp.createPlan(tx, q)
+}
+
+func (p *Planner) ExecuteUpdate(tx *storage.Transaction, cmd io.Reader) (int, error) {
+	_, u, err := parser.Parse(cmd)
+	if err != nil {
+		return 0, err
+	}
+	return p.up.executeCreateTable(tx, u)
 }

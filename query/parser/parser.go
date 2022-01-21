@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/nihei9/simple-db/query/scanner"
+	"github.com/nihei9/simple-db/table"
 	"github.com/nihei9/vartan/driver"
 	"github.com/nihei9/vartan/spec"
 )
@@ -33,18 +34,23 @@ type Query struct {
 	Predicate *scanner.Predicate
 }
 
-func Parse(src io.Reader) (*Query, error) {
+type CreateTable struct {
+	Table  string
+	Schema *table.Schema
+}
+
+func Parse(src io.Reader) (*Query, *CreateTable, error) {
 	treeAct := driver.NewSyntaxTreeActionSet(grammar, true, false)
 	opts := []driver.ParserOption{
 		driver.SemanticAction(treeAct),
 	}
 	p, err := driver.NewParser(grammar, src, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	err = p.Parse()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	synErrs := p.SyntaxErrors()
 	if len(synErrs) > 0 {
@@ -53,9 +59,24 @@ func Parse(src io.Reader) (*Query, error) {
 		for _, synErr := range synErrs {
 			fmt.Fprintf(&b, "\n%v:%v: %v", synErr.Row, synErr.Col, synErr.Message)
 		}
-		return nil, errors.New(b.String())
+		return nil, nil, errors.New(b.String())
 	}
-	return astToQuery(treeAct.AST())
+	root := treeAct.AST()
+	switch root.Children[0].KindName {
+	case "select_statement":
+		q, err := astToQuery(root)
+		if err != nil {
+			return nil, nil, err
+		}
+		return q, nil, nil
+	case "create_table_statement":
+		ct, err := astToCreateTable(root)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, ct, nil
+	}
+	return nil, nil, fmt.Errorf("invalid command")
 }
 
 func astToQuery(root *driver.Node) (*Query, error) {
@@ -107,4 +128,36 @@ func astToExpression(ast *driver.Node) (scanner.Expression, error) {
 	default:
 		return nil, fmt.Errorf("invalid node type")
 	}
+}
+
+func astToCreateTable(root *driver.Node) (*CreateTable, error) {
+	ct := &CreateTable{
+		Schema: table.NewShcema(),
+	}
+
+	createTableStmt := root.Children[0]
+	ct.Table = createTableStmt.Children[0].Text
+
+	if len(createTableStmt.Children) <= 3 {
+		return ct, nil
+	}
+
+	fieldDefList := createTableStmt.Children[1]
+	for _, fieldDef := range fieldDefList.Children {
+		typeDef := fieldDef.Children[1]
+		var f *table.Field
+		switch typeDef.Children[0].KindName {
+		case "int":
+			f = table.NewInt64Field()
+		case "varchar":
+			n, err := strconv.Atoi(typeDef.Children[1].Text)
+			if err != nil {
+				return nil, err
+			}
+			f = table.NewStringField(n)
+		}
+		ct.Schema.Add(fieldDef.Children[0].Text, f)
+	}
+
+	return ct, nil
 }
