@@ -117,6 +117,16 @@ func (s *CreateViewStatement) QueryString() (string, error) {
 	return "", nil
 }
 
+type InsertStatement struct {
+	Table  string
+	Fields []string
+	Values []scanner.Constant
+}
+
+func (s *InsertStatement) QueryString() (string, error) {
+	return "", nil
+}
+
 func Parse(src io.Reader) (QueryStringer, error) {
 	treeAct := driver.NewSyntaxTreeActionSet(grammar, true, false)
 	opts := []driver.ParserOption{
@@ -147,6 +157,8 @@ func Parse(src io.Reader) (QueryStringer, error) {
 		return astToCreateTableStatement(root.Children[0])
 	case "create_view_statement":
 		return astToCreateViewStatement(root.Children[0])
+	case "insert_statement":
+		return astToInsertStatement(root.Children[0])
 	}
 	return nil, fmt.Errorf("invalid command")
 }
@@ -179,28 +191,6 @@ func astToSelectStatement(selectStmt *driver.Node) (*SelectStament, error) {
 	return stmt, nil
 }
 
-func astToExpression(ast *driver.Node) (scanner.Expression, error) {
-	switch ast.Children[0].KindName {
-	case "field":
-		return scanner.NewFieldNameExpression(ast.Children[0].Children[0].Text), nil
-	case "constant":
-		switch ast.Children[0].Children[0].KindName {
-		case "string":
-			return scanner.NewConstantExpression(scanner.NewStringConstant(ast.Children[0].Children[0].Text)), nil
-		case "integer":
-			v, err := strconv.Atoi(ast.Children[0].Children[0].Text)
-			if err != nil {
-				return nil, err
-			}
-			return scanner.NewConstantExpression(scanner.NewInt64Constant(int64(v))), nil
-		default:
-			return nil, fmt.Errorf("invalid constant type")
-		}
-	default:
-		return nil, fmt.Errorf("invalid node type")
-	}
-}
-
 func astToCreateTableStatement(createTableStmt *driver.Node) (*CreateTableStatement, error) {
 	stmt := &CreateTableStatement{
 		Schema: table.NewShcema(),
@@ -208,23 +198,21 @@ func astToCreateTableStatement(createTableStmt *driver.Node) (*CreateTableStatem
 
 	stmt.Table = createTableStmt.Children[0].Text
 
-	if len(createTableStmt.Children) <= 3 {
-		return stmt, nil
-	}
-
 	fieldDefList := createTableStmt.Children[1]
 	for _, fieldDef := range fieldDefList.Children {
 		typeDef := fieldDef.Children[1]
 		var f *table.Field
 		switch typeDef.Children[0].KindName {
-		case "int":
+		case "kw_int":
 			f = table.NewInt64Field()
-		case "varchar":
+		case "kw_varchar":
 			n, err := strconv.Atoi(typeDef.Children[1].Text)
 			if err != nil {
 				return nil, err
 			}
 			f = table.NewStringField(n)
+		default:
+			return nil, fmt.Errorf("invalid field type: %T", typeDef.Children[0].Text)
 		}
 		stmt.Schema.Add(fieldDef.Children[0].Text, f)
 	}
@@ -245,4 +233,60 @@ func astToCreateViewStatement(createViewStmt *driver.Node) (*CreateViewStatement
 	}
 
 	return stmt, nil
+}
+
+func astToInsertStatement(insertStmt *driver.Node) (*InsertStatement, error) {
+	stmt := &InsertStatement{
+		Fields: make([]string, len(insertStmt.Children[1].Children)),
+		Values: make([]scanner.Constant, len(insertStmt.Children[2].Children)),
+	}
+
+	stmt.Table = insertStmt.Children[0].Text
+
+	fieldList := insertStmt.Children[1]
+	for i, field := range fieldList.Children {
+		stmt.Fields[i] = field.Children[0].Text
+	}
+
+	constantList := insertStmt.Children[2]
+	for i, constant := range constantList.Children {
+		c, err := astToConstant(constant)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Values[i] = c
+	}
+
+	return stmt, nil
+}
+
+func astToExpression(ast *driver.Node) (scanner.Expression, error) {
+	switch ast.Children[0].KindName {
+	case "field":
+		return scanner.NewFieldNameExpression(ast.Children[0].Children[0].Text), nil
+	case "constant":
+		c, err := astToConstant(ast.Children[0])
+		if err != nil {
+			return nil, err
+		}
+		return scanner.NewConstantExpression(c), nil
+	default:
+		return nil, fmt.Errorf("invalid node type")
+	}
+}
+
+func astToConstant(ast *driver.Node) (scanner.Constant, error) {
+	switch ast.Children[0].KindName {
+	case "string":
+		text := ast.Children[0].Text
+		return scanner.NewStringConstant(strings.TrimRight(strings.TrimLeft(text, "'"), "'")), nil
+	case "integer":
+		v, err := strconv.Atoi(ast.Children[0].Text)
+		if err != nil {
+			return nil, err
+		}
+		return scanner.NewInt64Constant(int64(v)), nil
+	default:
+		return nil, fmt.Errorf("invalid constant type")
+	}
 }

@@ -183,3 +183,51 @@ func TestParse_CreateView(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_Insert(t *testing.T) {
+	tests := []struct {
+		src             string
+		isInvalidSyntax bool
+	}{
+		{
+			src: `insert into foo(bar) values(100)`,
+		},
+		{
+			src: `insert into foo(bar, baz) values(100, 'X')`,
+		},
+		{
+			src:             `insert`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `insert into`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `insert into foo`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `insert into foo(bar)`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `insert into foo() values(100)`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `insert into foo(bar) values()`,
+			isInvalidSyntax: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			_, err := Parse(strings.NewReader(tt.src))
+			if tt.isInvalidSyntax && err == nil {
+				t.Fatal("Parse must return an error")
+			} else if !tt.isInvalidSyntax && err != nil {
+				t.Fatalf("Parse must not return an error: %v", err)
+			}
+		})
+	}
+}

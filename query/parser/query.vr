@@ -2,20 +2,28 @@ query
 	: select_statement
 	| create_table_statement
 	| create_view_statement
+	| insert_statement
 	;
 select_statement
 	: 'select' field_list 'from' table_list #ast #(select_statement $2 $4)
 	| 'select' field_list 'from' table_list 'where' predicate #ast #(select_statement $2 $4 $6)
 	;
 create_table_statement
-	: 'create' 'table' id '(' field_def_list ')' #ast #(create_table_statement $3 $4)
+	: 'create' 'table' id '(' field_def_list ')' #ast #(create_table_statement $3 $5)
 	;
 create_view_statement
 	: 'create' 'view' id 'as' select_statement #ast #(create_view_statement $3 $5)
 	;
+insert_statement
+	: 'insert' 'into' id '(' field_list ')' 'values' '(' constant_list ')' #ast #(insert_statement $3 $5 $9)
+	;
 field_list
 	: field
 	| field_list ',' field #ast #(field_list $1... $3)
+	;
+constant_list
+	: constant
+	| constant_list ',' constant #ast #(constant_list $1... $3)
 	;
 field_def_list
 	: field_def
@@ -25,8 +33,8 @@ field_def
 	: id type_def
 	;
 type_def
-	: 'int'
-	| 'varchar' '(' integer ')'
+	: kw_int
+	| kw_varchar '(' integer ')' #ast #(type_def $1 $3)
 	;
 table_list
 	: id
@@ -53,6 +61,8 @@ field
 
 white_spaces: "[\u{0009}\u{0020}]+" #skip;
 newlines: "[\u{000A}\u{000D}]+" #skip;
+kw_int: 'int';
+kw_varchar: 'varchar';
 id: "[A-Za-z_][0-9A-Za-z_]*";
 string: "'[^']*'";
 integer: "[0-9]+";

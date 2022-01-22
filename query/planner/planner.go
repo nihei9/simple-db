@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nihei9/simple-db/query/parser"
+	"github.com/nihei9/simple-db/query/scanner"
 	"github.com/nihei9/simple-db/storage"
 	"github.com/nihei9/simple-db/table"
 )
@@ -46,7 +47,7 @@ func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, stmt *parser.Sel
 	}
 
 	prodPlan := tabPlans[0]
-	for _, tabPlan := range tabPlans {
+	for _, tabPlan := range tabPlans[1:] {
 		p1, err := NewProductPlan(prodPlan, tabPlan)
 		if err != nil {
 			return nil, err
@@ -60,6 +61,10 @@ func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, stmt *parser.Sel
 		} else {
 			prodPlan = p2
 		}
+	}
+
+	if stmt.Predicate == nil {
+		return prodPlan, nil
 	}
 
 	selectPlan, err := NewSelectPlan(prodPlan, stmt.Predicate)
@@ -90,6 +95,49 @@ func (p *BasicUpdatePlanner) executeCreateView(tx *storage.Transaction, stmt *pa
 		return 0, err
 	}
 	return 0, p.mm.CreateView(tx, stmt.View, viewDef)
+}
+
+func (p *BasicUpdatePlanner) executeInsert(tx *storage.Transaction, stmt *parser.InsertStatement) (int, error) {
+	plan, err := NewTablePlan(tx, stmt.Table, p.mm)
+	if err != nil {
+		return 0, err
+	}
+	s, err := plan.Open()
+	if err != nil {
+		return 0, err
+	}
+	defer s.Close()
+	tab := s.(scanner.UpdateScanner)
+	err = tab.BeforeFirst()
+	if err != nil {
+		return 0, err
+	}
+	err = tab.Insert()
+	if err != nil {
+		return 0, err
+	}
+	for i, f := range stmt.Fields {
+		val := stmt.Values[i]
+		if v, ok := val.AsInt64(); ok {
+			err := tab.WriteInt64(f, v)
+			if err != nil {
+				return 0, err
+			}
+		}
+		if v, ok := val.AsUint64(); ok {
+			err := tab.WriteUint64(f, v)
+			if err != nil {
+				return 0, err
+			}
+		}
+		if v, ok := val.AsString(); ok {
+			err := tab.WriteString(f, v)
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+	return 1, nil
 }
 
 type Planner struct {
@@ -126,6 +174,8 @@ func (p *Planner) ExecuteUpdate(tx *storage.Transaction, cmd io.Reader) (int, er
 		return p.up.executeCreateTable(tx, stmt)
 	case *parser.CreateViewStatement:
 		return p.up.executeCreateView(tx, stmt)
+	case *parser.InsertStatement:
+		return p.up.executeInsert(tx, stmt)
 	}
 	return 0, fmt.Errorf("invalid query type: %T", q)
 }
