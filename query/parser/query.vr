@@ -8,7 +8,7 @@ select_statement
 	| 'select' field_list 'from' table_list 'where' predicate #ast #(select_statement $2 $4 $6)
 	;
 create_table_statement
-	: 'create' 'table' id field_def_list #ast #(create_table_statement $3 $4)
+	: 'create' 'table' id '(' field_def_list ')' #ast #(create_table_statement $3 $4)
 	;
 create_view_statement
 	: 'create' 'view' id 'as' select_statement #ast #(create_view_statement $3 $5)
@@ -26,7 +26,7 @@ field_def
 	;
 type_def
 	: 'int'
-	| 'varchar' integer
+	| 'varchar' '(' integer ')'
 	;
 table_list
 	: id

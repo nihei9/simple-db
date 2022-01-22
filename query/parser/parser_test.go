@@ -101,10 +101,10 @@ func TestParse_CreateTable(t *testing.T) {
 		isInvalidSyntax bool
 	}{
 		{
-			src: `create table foo bar int`,
+			src: `create table foo (bar int)`,
 		},
 		{
-			src: `create table foo bar int, baz varchar 100`,
+			src: `create table foo (bar int, baz varchar(100))`,
 		},
 		{
 			src:             `create`,
@@ -119,15 +119,19 @@ func TestParse_CreateTable(t *testing.T) {
 			isInvalidSyntax: true,
 		},
 		{
-			src:             `create table foo bar`,
+			src:             `create table foo bar int`,
 			isInvalidSyntax: true,
 		},
 		{
-			src:             `create table foo bar int,`,
+			src:             `create table foo (bar)`,
 			isInvalidSyntax: true,
 		},
 		{
-			src:             `create table foo bar varchar`,
+			src:             `create table foo (bar int,)`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `create table foo (bar varchar)`,
 			isInvalidSyntax: true,
 		},
 	}
