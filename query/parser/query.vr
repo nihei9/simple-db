@@ -1,6 +1,7 @@
 query
 	: select_statement
 	| create_table_statement
+	| create_view_statement
 	;
 select_statement
 	: 'select' field_list 'from' table_list #ast #(select_statement $2 $4)
@@ -8,6 +9,9 @@ select_statement
 	;
 create_table_statement
 	: 'create' 'table' id field_def_list #ast #(create_table_statement $3 $4)
+	;
+create_view_statement
+	: 'create' 'view' id 'as' select_statement #ast #(create_view_statement $3 $5)
 	;
 field_list
 	: field

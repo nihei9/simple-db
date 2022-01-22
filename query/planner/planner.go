@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -19,19 +20,19 @@ func NewBasicQueryPlanner(mm *table.MetadataManager) *BasicQueryPlanner {
 	}
 }
 
-func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, query *parser.Query) (Plan, error) {
-	tabPlans := make([]Plan, len(query.Tables))
-	for i, tab := range query.Tables {
+func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, stmt *parser.SelectStament) (Plan, error) {
+	tabPlans := make([]Plan, len(stmt.Tables))
+	for i, tab := range stmt.Tables {
 		viewDef, err := p.mm.FindViewDef(tx, tab)
 		if err != nil {
 			return nil, err
 		}
 		if viewDef != "" {
-			viewQuery, _, err := parser.Parse(strings.NewReader(viewDef))
+			viewQuery, err := parser.Parse(strings.NewReader(viewDef))
 			if err != nil {
 				return nil, err
 			}
-			tabPlans[i], err = p.createPlan(tx, viewQuery)
+			tabPlans[i], err = p.createPlan(tx, viewQuery.(*parser.SelectStament))
 			if err != nil {
 				return nil, err
 			}
@@ -61,12 +62,12 @@ func (p *BasicQueryPlanner) createPlan(tx *storage.Transaction, query *parser.Qu
 		}
 	}
 
-	selectPlan, err := NewSelectPlan(prodPlan, query.Predicate)
+	selectPlan, err := NewSelectPlan(prodPlan, stmt.Predicate)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewProjectPlan(selectPlan, query.Fields)
+	return NewProjectPlan(selectPlan, stmt.Fields)
 }
 
 type BasicUpdatePlanner struct {
@@ -79,8 +80,16 @@ func NewBasicUpdatePlanner(mm *table.MetadataManager) *BasicUpdatePlanner {
 	}
 }
 
-func (p *BasicUpdatePlanner) executeCreateTable(tx *storage.Transaction, ct *parser.CreateTable) (int, error) {
-	return 0, p.mm.CreateTable(tx, ct.Table, ct.Schema)
+func (p *BasicUpdatePlanner) executeCreateTable(tx *storage.Transaction, stmt *parser.CreateTableStatement) (int, error) {
+	return 0, p.mm.CreateTable(tx, stmt.Table, stmt.Schema)
+}
+
+func (p *BasicUpdatePlanner) executeCreateView(tx *storage.Transaction, stmt *parser.CreateViewStatement) (int, error) {
+	viewDef, err := stmt.Query.QueryString()
+	if err != nil {
+		return 0, err
+	}
+	return 0, p.mm.CreateView(tx, stmt.View, viewDef)
 }
 
 type Planner struct {
@@ -96,17 +105,27 @@ func NewPlanner(qp *BasicQueryPlanner, up *BasicUpdatePlanner) *Planner {
 }
 
 func (p *Planner) CreateQueryPlan(tx *storage.Transaction, cmd io.Reader) (Plan, error) {
-	q, _, err := parser.Parse(cmd)
+	q, err := parser.Parse(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return p.qp.createPlan(tx, q)
+	stmt, ok := q.(*parser.SelectStament)
+	if !ok {
+		return nil, fmt.Errorf("invalid query tyqe: %T", q)
+	}
+	return p.qp.createPlan(tx, stmt)
 }
 
 func (p *Planner) ExecuteUpdate(tx *storage.Transaction, cmd io.Reader) (int, error) {
-	_, u, err := parser.Parse(cmd)
+	q, err := parser.Parse(cmd)
 	if err != nil {
 		return 0, err
 	}
-	return p.up.executeCreateTable(tx, u)
+	switch stmt := q.(type) {
+	case *parser.CreateTableStatement:
+		return p.up.executeCreateTable(tx, stmt)
+	case *parser.CreateViewStatement:
+		return p.up.executeCreateView(tx, stmt)
+	}
+	return 0, fmt.Errorf("invalid query type: %T", q)
 }
