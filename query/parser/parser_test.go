@@ -275,3 +275,59 @@ func TestParse_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_Update(t *testing.T) {
+	tests := []struct {
+		src             string
+		isInvalidSyntax bool
+	}{
+		{
+			src: `update foo set bar = 100`,
+		},
+		{
+			src: `update foo set bar = 100 where baz = 'X'`,
+		},
+		{
+			src:             `update`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set bar`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set bar =`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set bar = 100 where`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set bar = 100 where baz`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `update foo set bar = 100 where baz =`,
+			isInvalidSyntax: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			_, err := Parse(strings.NewReader(tt.src))
+			if tt.isInvalidSyntax && err == nil {
+				t.Fatal("Parse must return an error")
+			} else if !tt.isInvalidSyntax && err != nil {
+				t.Fatalf("Parse must not return an error: %v", err)
+			}
+		})
+	}
+}

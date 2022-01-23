@@ -180,6 +180,73 @@ func TestPlanner(t *testing.T) {
 		}
 	}
 
+	// Test UPDATE
+	{
+		rows, err := p.ExecuteUpdate(tx, strings.NewReader(`update characters set cname = 'John Jay Doggett' where cid = 10`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`update characters set cname = 'Monica Julieta Reyes' where cid = 11`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
+
+		plan, err := p.CreateQueryPlan(tx, strings.NewReader(`select cid, cname from characters`))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		result, err := plan.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = result.BeforeFirst()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var recs []*resultRecord
+		for {
+			ok, err := result.Next()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				break
+			}
+
+			cid, err := result.ReadInt64("cid")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cname, err := result.ReadString("cname")
+			if err != nil {
+				t.Fatal(err)
+			}
+			recs = append(recs, &resultRecord{
+				cid:   cid,
+				cname: cname,
+			})
+		}
+		if len(recs) != 2 {
+			t.Fatalf("unexprec record count: want: %v, got: %v", 2, len(recs))
+		}
+		r0 := recs[0]
+		if r0.cid != 10 || r0.cname != "John Jay Doggett" {
+			t.Fatalf("unexpected record: %#v", r0)
+		}
+		r1 := recs[1]
+		if r1.cid != 11 || r1.cname != "Monica Julieta Reyes" {
+			t.Fatalf("unexpected record: %#v", r1)
+		}
+	}
+
 	// Test DELETE
 	{
 		rows, err := p.ExecuteUpdate(tx, strings.NewReader(`delete from characters where cid = 11`))
@@ -231,7 +298,7 @@ func TestPlanner(t *testing.T) {
 			t.Fatalf("unexprec record count: want: %v, got: %v", 1, len(recs))
 		}
 		r0 := recs[0]
-		if r0.cid != 10 || r0.cname != "John Doggett" {
+		if r0.cid != 10 || r0.cname != "John Jay Doggett" {
 			t.Fatalf("unexpected record: %#v", r0)
 		}
 	}

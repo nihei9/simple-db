@@ -136,6 +136,17 @@ func (s *DeleteStatement) QueryString() (string, error) {
 	return "", nil
 }
 
+type UpdateStatement struct {
+	Table     string
+	Field     string
+	Value     scanner.Expression
+	Predicate *scanner.Predicate
+}
+
+func (s *UpdateStatement) QueryString() (string, error) {
+	return "", nil
+}
+
 func Parse(src io.Reader) (QueryStringer, error) {
 	treeAct := driver.NewSyntaxTreeActionSet(grammar, true, false)
 	opts := []driver.ParserOption{
@@ -170,6 +181,8 @@ func Parse(src io.Reader) (QueryStringer, error) {
 		return astToInsertStatement(root.Children[0])
 	case "delete_statement":
 		return astToDeleteStatement(root.Children[0])
+	case "update_statement":
+		return astToUpdateStatement(root.Children[0])
 	}
 	return nil, fmt.Errorf("invalid command")
 }
@@ -269,6 +282,25 @@ func astToDeleteStatement(deleteStmt *driver.Node) (*DeleteStatement, error) {
 	if len(deleteStmt.Children) >= 2 {
 		var err error
 		stmt.Predicate, err = astToPredicate(deleteStmt.Children[1])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return stmt, nil
+}
+
+func astToUpdateStatement(updateStmt *driver.Node) (*UpdateStatement, error) {
+	stmt := &UpdateStatement{}
+	stmt.Table = updateStmt.Children[0].Text
+	stmt.Field = updateStmt.Children[1].Children[0].Text
+	var err error
+	stmt.Value, err = astToExpression(updateStmt.Children[2])
+	if err != nil {
+		return nil, err
+	}
+	if len(updateStmt.Children) >= 4 {
+		var err error
+		stmt.Predicate, err = astToPredicate(updateStmt.Children[3])
 		if err != nil {
 			return nil, err
 		}

@@ -4,6 +4,7 @@ query
 	| create_view_statement
 	| insert_statement
 	| delete_statement
+	| update_statement
 	;
 select_statement
 	: 'select' field_list 'from' table_list #ast #(select_statement $2 $4)
@@ -21,6 +22,10 @@ insert_statement
 delete_statement
 	: 'delete' 'from' id #ast #(delete_statement $3)
 	| 'delete' 'from' id 'where' predicate #ast #(delete_statement $3 $5)
+	;
+update_statement
+	: 'update' id 'set' field '=' expression #ast #(update_statement $2 $4 $6)
+	| 'update' id 'set' field '=' expression 'where' predicate #ast #(update_statement $2 $4 $6 $8)
 	;
 field_list
 	: field
