@@ -140,6 +140,43 @@ func (p *BasicUpdatePlanner) executeInsert(tx *storage.Transaction, stmt *parser
 	return 1, nil
 }
 
+func (p *BasicUpdatePlanner) executeDelete(tx *storage.Transaction, stmt *parser.DeleteStatement) (int, error) {
+	var plan Plan
+	var err error
+	plan, err = NewTablePlan(tx, stmt.Table, p.mm)
+	if err != nil {
+		return 0, err
+	}
+	if stmt.Predicate != nil {
+		plan, err = NewSelectPlan(plan, stmt.Predicate)
+		if err != nil {
+			return 0, err
+		}
+	}
+	s, err := plan.Open()
+	if err != nil {
+		return 0, err
+	}
+	defer s.Close()
+	up := s.(scanner.UpdateScanner)
+	rowCount := 0
+	for {
+		ok, err := up.Next()
+		if err != nil {
+			return 0, err
+		}
+		if !ok {
+			break
+		}
+		err = up.Delete()
+		if err != nil {
+			return 0, err
+		}
+		rowCount++
+	}
+	return rowCount, nil
+}
+
 type Planner struct {
 	qp *BasicQueryPlanner
 	up *BasicUpdatePlanner
@@ -176,6 +213,8 @@ func (p *Planner) ExecuteUpdate(tx *storage.Transaction, cmd io.Reader) (int, er
 		return p.up.executeCreateView(tx, stmt)
 	case *parser.InsertStatement:
 		return p.up.executeInsert(tx, stmt)
+	case *parser.DeleteStatement:
+		return p.up.executeDelete(tx, stmt)
 	}
 	return 0, fmt.Errorf("invalid query type: %T", q)
 }

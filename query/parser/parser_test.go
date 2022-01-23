@@ -231,3 +231,47 @@ func TestParse_Insert(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_Delete(t *testing.T) {
+	tests := []struct {
+		src             string
+		isInvalidSyntax bool
+	}{
+		{
+			src: `delete from foo`,
+		},
+		{
+			src: `delete from foo where bar = 100`,
+		},
+		{
+			src:             `delete`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `delete from`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `delete from foo where`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `delete from foo where bar`,
+			isInvalidSyntax: true,
+		},
+		{
+			src:             `delete from foo where bar =`,
+			isInvalidSyntax: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.src, func(t *testing.T) {
+			_, err := Parse(strings.NewReader(tt.src))
+			if tt.isInvalidSyntax && err == nil {
+				t.Fatal("Parse must return an error")
+			} else if !tt.isInvalidSyntax && err != nil {
+				t.Fatalf("Parse must not return an error: %v", err)
+			}
+		})
+	}
+}

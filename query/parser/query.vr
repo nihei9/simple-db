@@ -3,6 +3,7 @@ query
 	| create_table_statement
 	| create_view_statement
 	| insert_statement
+	| delete_statement
 	;
 select_statement
 	: 'select' field_list 'from' table_list #ast #(select_statement $2 $4)
@@ -16,6 +17,10 @@ create_view_statement
 	;
 insert_statement
 	: 'insert' 'into' id '(' field_list ')' 'values' '(' constant_list ')' #ast #(insert_statement $3 $5 $9)
+	;
+delete_statement
+	: 'delete' 'from' id #ast #(delete_statement $3)
+	| 'delete' 'from' id 'where' predicate #ast #(delete_statement $3 $5)
 	;
 field_list
 	: field

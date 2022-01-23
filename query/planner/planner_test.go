@@ -62,64 +62,53 @@ func TestPlanner(t *testing.T) {
 	up := NewBasicUpdatePlanner(mm)
 	p := NewPlanner(qp, up)
 
-	rows, err := p.ExecuteUpdate(tx, strings.NewReader(`create table actors(aid int, aname varchar(100))`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 0 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 0, rows)
-	}
+	// Test CREATE TABLE and INSERT
+	{
+		rows, err := p.ExecuteUpdate(tx, strings.NewReader(`create table actors(aid int, aname varchar(100))`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 0 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 0, rows)
+		}
 
-	rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into actors(aid, aname) values(100, 'Robert Patrick')`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 1 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
-	}
-	rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into actors(aid, aname) values(101, 'Annabeth Gish')`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 1 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
-	}
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into actors(aid, aname) values(100, 'Robert Patrick')`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into actors(aid, aname) values(101, 'Annabeth Gish')`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
 
-	rows, err = p.ExecuteUpdate(tx, strings.NewReader(`create table characters(cid int, cname varchar(100), caid int)`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 0 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 0, rows)
-	}
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`create table characters(cid int, cname varchar(100), caid int)`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 0 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 0, rows)
+		}
 
-	rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into characters(cid, cname, caid) values(10, 'John Doggett', 100)`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 1 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
-	}
-	rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into characters(cid, cname, caid) values(11, 'Monica Reyes', 101)`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rows != 1 {
-		t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
-	}
-
-	plan, err := p.CreateQueryPlan(tx, strings.NewReader(`select aid, aname, cid, cname from actors, characters where aid = caid`))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := plan.Open()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = result.BeforeFirst()
-	if err != nil {
-		t.Fatal(err)
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into characters(cid, cname, caid) values(10, 'John Doggett', 100)`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
+		rows, err = p.ExecuteUpdate(tx, strings.NewReader(`insert into characters(cid, cname, caid) values(11, 'Monica Reyes', 101)`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
 	}
 
 	type resultRecord struct {
@@ -129,49 +118,122 @@ func TestPlanner(t *testing.T) {
 		cname string
 	}
 
-	var recs []*resultRecord
-	for {
-		ok, err := result.Next()
+	// Test SELECT
+	{
+		plan, err := p.CreateQueryPlan(tx, strings.NewReader(`select aid, aname, cid, cname from actors, characters where aid = caid`))
 		if err != nil {
 			t.Fatal(err)
-		}
-		if !ok {
-			break
 		}
 
-		aid, err := result.ReadInt64("aid")
+		result, err := plan.Open()
 		if err != nil {
 			t.Fatal(err)
 		}
-		aname, err := result.ReadString("aname")
+		err = result.BeforeFirst()
 		if err != nil {
 			t.Fatal(err)
 		}
-		cid, err := result.ReadInt64("cid")
-		if err != nil {
-			t.Fatal(err)
+
+		var recs []*resultRecord
+		for {
+			ok, err := result.Next()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				break
+			}
+
+			aid, err := result.ReadInt64("aid")
+			if err != nil {
+				t.Fatal(err)
+			}
+			aname, err := result.ReadString("aname")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cid, err := result.ReadInt64("cid")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cname, err := result.ReadString("cname")
+			if err != nil {
+				t.Fatal(err)
+			}
+			recs = append(recs, &resultRecord{
+				aid:   aid,
+				aname: aname,
+				cid:   cid,
+				cname: cname,
+			})
 		}
-		cname, err := result.ReadString("cname")
-		if err != nil {
-			t.Fatal(err)
+		if len(recs) != 2 {
+			t.Fatalf("unexprec record count: want: %v, got: %v", 2, len(recs))
 		}
-		recs = append(recs, &resultRecord{
-			aid:   aid,
-			aname: aname,
-			cid:   cid,
-			cname: cname,
-		})
+		r0 := recs[0]
+		if r0.aid != 100 || r0.aname != "Robert Patrick" || r0.cid != 10 || r0.cname != "John Doggett" {
+			t.Fatalf("unexpected record: %#v", r0)
+		}
+		r1 := recs[1]
+		if r1.aid != 101 || r1.aname != "Annabeth Gish" || r1.cid != 11 || r1.cname != "Monica Reyes" {
+			t.Fatalf("unexpected record: %#v", r1)
+		}
 	}
-	if len(recs) != 2 {
-		t.Fatalf("unexprec record count: want: %v, got: %v", 2, len(recs))
-	}
-	r0 := recs[0]
-	if r0.aid != 100 || r0.aname != "Robert Patrick" || r0.cid != 10 || r0.cname != "John Doggett" {
-		t.Fatalf("unexpected record: %#v", r0)
-	}
-	r1 := recs[1]
-	if r1.aid != 101 || r1.aname != "Annabeth Gish" || r1.cid != 11 || r1.cname != "Monica Reyes" {
-		t.Fatalf("unexpected record: %#v", r1)
+
+	// Test DELETE
+	{
+		rows, err := p.ExecuteUpdate(tx, strings.NewReader(`delete from characters where cid = 11`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows != 1 {
+			t.Fatalf("unexpected affected rows: want: %v, got: %v", 1, rows)
+		}
+
+		plan, err := p.CreateQueryPlan(tx, strings.NewReader(`select cid, cname from characters`))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		result, err := plan.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = result.BeforeFirst()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var recs []*resultRecord
+		for {
+			ok, err := result.Next()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				break
+			}
+
+			cid, err := result.ReadInt64("cid")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cname, err := result.ReadString("cname")
+			if err != nil {
+				t.Fatal(err)
+			}
+			recs = append(recs, &resultRecord{
+				cid:   cid,
+				cname: cname,
+			})
+		}
+		if len(recs) != 1 {
+			t.Fatalf("unexprec record count: want: %v, got: %v", 1, len(recs))
+		}
+		r0 := recs[0]
+		if r0.cid != 10 || r0.cname != "John Doggett" {
+			t.Fatalf("unexpected record: %#v", r0)
+		}
 	}
 }
 

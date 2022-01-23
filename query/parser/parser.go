@@ -127,6 +127,15 @@ func (s *InsertStatement) QueryString() (string, error) {
 	return "", nil
 }
 
+type DeleteStatement struct {
+	Table     string
+	Predicate *scanner.Predicate
+}
+
+func (s *DeleteStatement) QueryString() (string, error) {
+	return "", nil
+}
+
 func Parse(src io.Reader) (QueryStringer, error) {
 	treeAct := driver.NewSyntaxTreeActionSet(grammar, true, false)
 	opts := []driver.ParserOption{
@@ -159,6 +168,8 @@ func Parse(src io.Reader) (QueryStringer, error) {
 		return astToCreateViewStatement(root.Children[0])
 	case "insert_statement":
 		return astToInsertStatement(root.Children[0])
+	case "delete_statement":
+		return astToDeleteStatement(root.Children[0])
 	}
 	return nil, fmt.Errorf("invalid command")
 }
@@ -174,18 +185,10 @@ func astToSelectStatement(selectStmt *driver.Node) (*SelectStament, error) {
 		stmt.Tables = append(stmt.Tables, table.Text)
 	}
 	if len(selectStmt.Children) >= 3 {
-		predicate := selectStmt.Children[2]
-		stmt.Predicate = scanner.NewPredicate(nil)
-		for _, term := range predicate.Children {
-			lExp, err := astToExpression(term.Children[0])
-			if err != nil {
-				return nil, err
-			}
-			rExp, err := astToExpression(term.Children[1])
-			if err != nil {
-				return nil, err
-			}
-			stmt.Predicate.AppendTerm(scanner.NewTerm(lExp, rExp))
+		var err error
+		stmt.Predicate, err = astToPredicate(selectStmt.Children[2])
+		if err != nil {
+			return nil, err
 		}
 	}
 	return stmt, nil
@@ -258,6 +261,35 @@ func astToInsertStatement(insertStmt *driver.Node) (*InsertStatement, error) {
 	}
 
 	return stmt, nil
+}
+
+func astToDeleteStatement(deleteStmt *driver.Node) (*DeleteStatement, error) {
+	stmt := &DeleteStatement{}
+	stmt.Table = deleteStmt.Children[0].Text
+	if len(deleteStmt.Children) >= 2 {
+		var err error
+		stmt.Predicate, err = astToPredicate(deleteStmt.Children[1])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return stmt, nil
+}
+
+func astToPredicate(ast *driver.Node) (*scanner.Predicate, error) {
+	pred := scanner.NewPredicate(nil)
+	for _, term := range ast.Children {
+		lExp, err := astToExpression(term.Children[0])
+		if err != nil {
+			return nil, err
+		}
+		rExp, err := astToExpression(term.Children[1])
+		if err != nil {
+			return nil, err
+		}
+		pred.AppendTerm(scanner.NewTerm(lExp, rExp))
+	}
+	return pred, nil
 }
 
 func astToExpression(ast *driver.Node) (scanner.Expression, error) {
